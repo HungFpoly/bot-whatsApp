@@ -79,6 +79,40 @@ async function startBot() {
     }
   });
 
+  // New member welcome message
+  sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
+    if (action !== "add") return;
+
+    // If a specific group is configured, only handle that group
+    if (config.whatsapp.groupId && id !== config.whatsapp.groupId) return;
+
+    for (const participant of participants) {
+      try {
+        await sock.sendMessage(id, {
+          text: `Welcome to the Laguna Park WhatsApp Community. 🏡
+
+After joining the chat group, please add your member tag.
+
+*How to add it:*
+
+1. Open the chat group and tap the group name.
+2. Under "Members", tap "Add member tag" below your name.
+3. Enter your unit and status, then tap "Save".
+
+*Example:* DXX-XX SP
+*Other status:* Resident or Tenant
+
+Your WhatsApp name will appear separately. If the option is unavailable, please update WhatsApp to the latest version.
+
+Thank you for helping us maintain a respectful and properly organised community.`,
+        });
+        console.log(`[BOT] Welcome message sent to new member: ${participant}`);
+      } catch (error) {
+        console.error(`[BOT] Failed to send welcome message to ${participant}:`, error);
+      }
+    }
+  });
+
   // Persist credentials whenever they update
   sock.ev.on("creds.update", saveCreds);
 
