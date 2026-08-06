@@ -12,6 +12,73 @@ interface ModerationResult {
   confidence: number;
 }
 
+const IMAGE_MODERATION_PROMPT = `You are a content moderation bot for a condominium residents' group chat.
+Analyze this image and determine if it violates group rules.
+
+Rules:
+1. No sexual, pornographic, or nudity content
+2. No graphic violence or gore
+3. No hate symbols, racist or discriminatory imagery
+4. No scam/phishing content (fake QR codes, fake payment screens, suspicious links shown in image)
+5. No commercial advertising or promotional flyers
+
+Respond ONLY in JSON format:
+{
+  "isToxic": true/false,
+  "reason": "brief explanation",
+  "confidence": 0.0 to 1.0
+}
+
+Be strict but fair. Normal photos (food, facilities, documents, selfies) are OK.
+Only flag images that clearly violate one of the rules above.`;
+
+export async function analyzeImage(
+  imageBase64: string,
+  mimeType: string = "image/jpeg"
+): Promise<ModerationResult> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`,
+                detail: "low", // use "low" to save tokens, sufficient for moderation
+              },
+            },
+            {
+              type: "text",
+              text: IMAGE_MODERATION_PROMPT,
+            },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 100,
+    });
+
+    const content = response.choices[0]?.message?.content || "";
+    const result = JSON.parse(content) as ModerationResult;
+
+    return {
+      isToxic: result.isToxic || false,
+      reason: result.reason || "Unknown",
+      confidence: result.confidence || 0,
+    };
+  } catch (error) {
+    console.error("[AI] Error analyzing image:", error);
+    return {
+      isToxic: false,
+      reason: "Error during image analysis",
+      confidence: 0,
+    };
+  }
+}
+
 export async function analyzeMessage(
   message: string
 ): Promise<ModerationResult> {

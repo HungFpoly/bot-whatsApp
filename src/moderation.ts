@@ -1,6 +1,7 @@
 import type { WASocket, WAMessage, proto } from "@whiskeysockets/baileys";
+import { downloadMediaMessage } from "@whiskeysockets/baileys";
 import { config } from "./config";
-import { analyzeMessage } from "./ai";
+import { analyzeMessage, analyzeImage } from "./ai";
 
 // ---- Quiet Hours ----
 // Tracks which senders already received a reminder in the current quiet-hours
@@ -202,8 +203,8 @@ export async function moderateMessage(
   groupJid: string,
   msg: WAMessage
 ): Promise<void> {
-  const text = getMessageText(msg);
-  if (!text) return;
+  const m = msg.message;
+  if (!m) return;
 
   const senderId = msg.key.participant || msg.key.remoteJid || "unknown";
 
@@ -216,6 +217,17 @@ export async function moderateMessage(
       text: config.quietHours.reminderMessage,
     });
   }
+
+  // --- Image / Video moderation ---
+  const isImage = !!m.imageMessage;
+  const isVideo = !!m.videoMessage;
+  if (isImage || isVideo) {
+    await moderateMedia(sock, groupJid, msg, isImage ? "image" : "video");
+    return;
+  }
+
+  const text = getMessageText(msg);
+  if (!text) return;
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
   const { keysToDelete, shouldWarn } = checkSpam(senderId, text, msg.key);
@@ -257,6 +269,35 @@ export async function moderateMessage(
       )}..." - Reason: ${result.reason}`
     );
     await deleteMessage(sock, groupJid, msg, result.reason);
+  }
+}
+
+async function moderateMedia(
+  sock: WASocket,
+  groupJid: string,
+  msg: WAMessage,
+  type: "image" | "video"
+): Promise<void> {
+  try {
+    console.log(`[MOD] Analyzing ${type} from ${msg.key.participant}...`);
+
+    // Download the media as a buffer
+    const buffer = await downloadMediaMessage(msg, "buffer", {}) as Buffer;
+    const base64 = buffer.toString("base64");
+    const mimeType = type === "image" ? "image/jpeg" : "image/jpeg"; // use first frame for video
+
+    const result = await analyzeImage(base64, mimeType);
+
+    if (result.isToxic && result.confidence >= 0.7) {
+      console.log(
+        `[MOD] AI flagged ${type} (${result.confidence}): Reason: ${result.reason}`
+      );
+      await deleteMessage(sock, groupJid, msg, result.reason);
+    } else {
+      console.log(`[MOD] ${type} passed moderation.`);
+    }
+  } catch (error) {
+    console.error(`[MOD] Failed to moderate ${type}:`, error);
   }
 }
 

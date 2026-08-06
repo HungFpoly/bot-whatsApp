@@ -113,9 +113,15 @@ async function startBot() {
     }
 
     const text = getMessageText(msg);
-    if (!text) return;
+    const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
 
-    console.log(`[DEBUG] Group message in ${remoteJid}: "${text}"`);
+    if (!text && !isMedia) return;
+
+    if (text) {
+      console.log(`[DEBUG] Group message in ${remoteJid}: "${text}"`);
+    } else {
+      console.log(`[DEBUG] Group media message in ${remoteJid}: ${msg.message?.imageMessage ? "image" : "video"}`);
+    }
 
     await moderateMessage(sock, remoteJid, msg);
   }
