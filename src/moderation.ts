@@ -37,7 +37,12 @@ function checkQuietHoursReset() {
 // repeated duplicate messages (e.g. "spam spam spam" x5 in a row).
 const SPAM_WINDOW_MS = 15_000; // look back window
 const SPAM_DUPLICATE_THRESHOLD = 2; // same/similar text repeated N+ times
-const SPAM_FLOOD_THRESHOLD = 5; // any messages sent N+ times regardless of content
+const SPAM_FLOOD_THRESHOLD = 5; // warn + delete from the 6th message onward
+
+interface SpamResult {
+  keysToDelete: proto.IMessageKey[];
+  shouldWarn: boolean;
+}
 
 interface RecentMessage {
   text: string;
@@ -47,23 +52,24 @@ interface RecentMessage {
 }
 
 const recentMessagesBySender = new Map<string, RecentMessage[]>();
+// Track whether we already sent a warning to this sender in the current window
+const spamWarnedSenders = new Set<string>();
 
 function normalizeForSpamCheck(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /**
- * Records the message and checks whether the sender is spamming
- * (duplicate content or flooding) within the recent time window.
- * Returns the list of message keys that should be deleted (the
- * current message plus any earlier ones in the same spam burst that
- * haven't been deleted yet), or an empty array if not spam.
+ * Records the message and checks whether the sender is spamming.
+ * - Flood: keep the first 5 messages, delete from the 6th onward.
+ * - Duplicate: keep the first occurrence, delete every repeat.
+ * Returns keysToDelete and whether a warning should be sent.
  */
 function checkSpam(
   senderId: string,
   text: string,
   key: proto.IMessageKey
-): proto.IMessageKey[] {
+): SpamResult {
   const now = Date.now();
   const normalized = normalizeForSpamCheck(text);
 
@@ -77,18 +83,18 @@ function checkSpam(
   recent.push(current);
   recentMessagesBySender.set(senderId, recent);
 
-  const isFlood = recent.length >= SPAM_FLOOD_THRESHOLD;
   const duplicates = recent.filter((m) => m.text === normalized);
   const isDuplicateSpam = duplicates.length >= SPAM_DUPLICATE_THRESHOLD;
+  // Flood: 6th message onward (keep first SPAM_FLOOD_THRESHOLD = 5)
+  const isFlood = recent.length > SPAM_FLOOD_THRESHOLD;
 
   if (!isFlood && !isDuplicateSpam) {
-    return [];
+    return { keysToDelete: [], shouldWarn: false };
   }
 
-  // Once flagged as spam:
-  // - Flood: delete the whole recent burst (content varies, no "original" to keep).
-  // - Duplicate: keep the very first occurrence, delete every repeat after it.
-  const toDelete = isFlood ? recent : duplicates.slice(1);
+  // Flood: only delete messages beyond the first 5
+  // Duplicate: keep first occurrence, delete repeats
+  const toDelete = isFlood ? recent.slice(SPAM_FLOOD_THRESHOLD) : duplicates.slice(1);
   const keys: proto.IMessageKey[] = [];
   for (const m of toDelete) {
     if (!m.deleted) {
@@ -96,7 +102,12 @@ function checkSpam(
       keys.push(m.key);
     }
   }
-  return keys;
+
+  // Send warning only once per spam window per sender
+  const shouldWarn = keys.length > 0 && !spamWarnedSenders.has(senderId);
+  if (shouldWarn) spamWarnedSenders.add(senderId);
+
+  return { keysToDelete: keys, shouldWarn };
 }
 
 // Bad words / abbreviations list (expand as needed)
@@ -131,7 +142,7 @@ const BAD_WORDS: string[] = [
   // Slurs / hate speech
   "nigger",
   "faggot",
-  "gay", // blocked per client request, regardless of context
+  // "gay" removed as standalone ban — only flagged when used as insult via AI
   // Chinese profanity (common WhatsApp/chat abbreviations)
   "他妈的",
   "卧槽",
@@ -207,15 +218,18 @@ export async function moderateMessage(
   }
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
-  // Runs even for short messages (e.g. "ok" x20) since flooding is spam
-  // regardless of content length.
-  const spamKeys = checkSpam(senderId, text, msg.key);
-  if (spamKeys.length > 0) {
+  const { keysToDelete, shouldWarn } = checkSpam(senderId, text, msg.key);
+  if (keysToDelete.length > 0) {
     console.log(
-      `[MOD] Spam detected from ${senderId}: "${text.substring(0, 50)}..." (deleting ${spamKeys.length} message(s))`
+      `[MOD] Spam detected from ${senderId}: "${text.substring(0, 50)}..." (deleting ${keysToDelete.length} message(s))`
     );
-    for (const key of spamKeys) {
+    for (const key of keysToDelete) {
       await deleteMessageByKey(sock, groupJid, key, "Spam / repeated messages");
+    }
+    if (shouldWarn) {
+      await sock.sendMessage(groupJid, {
+        text: `⚠️ Please avoid sending repeated or excessive messages in this group.`,
+      });
     }
     return;
   }
