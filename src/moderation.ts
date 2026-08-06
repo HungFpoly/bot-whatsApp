@@ -120,6 +120,8 @@ const BAD_WORDS: string[] = [
   "chee bye",
   "kanina",
   "kaninabuchowchibai",
+  "dou ma",
+  "douma",
   // Phrases specifically requested to be blocked
   "without prejudice",
 ];
