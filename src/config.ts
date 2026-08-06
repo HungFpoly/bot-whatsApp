@@ -19,5 +19,14 @@ export const config = {
       process.env.WARNING_MESSAGE ||
       "Your message was removed for violating group rules.",
   },
+  quietHours: {
+    enabled: process.env.QUIET_HOURS_ENABLED !== "false",
+    startHour: parseInt(process.env.QUIET_HOURS_START || "23", 10), // 11pm
+    endHour: parseInt(process.env.QUIET_HOURS_END || "7", 10),     // 7am
+    timezone: process.env.QUIET_HOURS_TIMEZONE || "Asia/Singapore",
+    reminderMessage:
+      process.env.QUIET_HOURS_MESSAGE ||
+      "🌙 Quiet hours reminder (11pm – 7am): Please be mindful of the time. Thank you for keeping the group peaceful!",
+  },
   port: parseInt(process.env.PORT || "3000", 10),
 };

@@ -2,6 +2,36 @@ import type { WASocket, WAMessage, proto } from "@whiskeysockets/baileys";
 import { config } from "./config";
 import { analyzeMessage } from "./ai";
 
+// ---- Quiet Hours ----
+// Tracks which senders already received a reminder in the current quiet-hours
+// window so they only get one reminder per session (not every message).
+const quietHoursRemindedSenders = new Set<string>();
+
+function isQuietHours(): boolean {
+  if (!config.quietHours.enabled) return false;
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: config.quietHours.timezone })
+  );
+  const hour = now.getHours();
+  const { startHour, endHour } = config.quietHours;
+  // e.g. 23 → 7: wraps midnight
+  if (startHour > endHour) {
+    return hour >= startHour || hour < endHour;
+  }
+  return hour >= startHour && hour < endHour;
+}
+
+// Reset reminded senders at the start of each quiet-hours window
+// (i.e. when quiet hours begin again the next day)
+let _lastQuietState = false;
+function checkQuietHoursReset() {
+  const current = isQuietHours();
+  if (current && !_lastQuietState) {
+    quietHoursRemindedSenders.clear();
+  }
+  _lastQuietState = current;
+}
+
 // ---- Spam detection ----
 // Tracks recent message history per sender to detect flooding /
 // repeated duplicate messages (e.g. "spam spam spam" x5 in a row).
@@ -124,6 +154,8 @@ const BAD_WORDS: string[] = [
   "douma",
   // Phrases specifically requested to be blocked
   "without prejudice",
+  "handcuff",
+  "handcuffs",
 ];
 
 function containsBadWords(text: string): boolean {
@@ -163,6 +195,16 @@ export async function moderateMessage(
   if (!text) return;
 
   const senderId = msg.key.participant || msg.key.remoteJid || "unknown";
+
+  // Step 0.5: Quiet hours reminder (send once per sender per quiet window)
+  checkQuietHoursReset();
+  if (isQuietHours() && !quietHoursRemindedSenders.has(senderId)) {
+    quietHoursRemindedSenders.add(senderId);
+    console.log(`[MOD] Quiet hours reminder sent to ${senderId}`);
+    await sock.sendMessage(groupJid, {
+      text: config.quietHours.reminderMessage,
+    });
+  }
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
   // Runs even for short messages (e.g. "ok" x20) since flooding is spam
