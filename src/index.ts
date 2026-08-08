@@ -99,8 +99,8 @@ After joining the chat group, please add your member tag.
 2. Under "Members", tap "Add member tag" below your name.
 3. Enter your unit and status, then tap "Save".
 
-*Example:* DXX-XX SP
-*Other status:* Resident or Tenant
+*Example:* DXX-XX SP or AXX-XX Tenant
+*Other status:* SP / Resident / Tenant
 
 Your WhatsApp name will appear separately. If the option is unavailable, please update WhatsApp to the latest version.
 
