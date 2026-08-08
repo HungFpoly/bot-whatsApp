@@ -62,7 +62,9 @@ export async function analyzeImage(
     });
 
     const content = response.choices[0]?.message?.content || "";
-    const result = JSON.parse(content) as ModerationResult;
+    // Strip markdown code blocks if AI wraps response in ```json ... ```
+    const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleaned) as ModerationResult;
 
     return {
       isToxic: result.isToxic || false,
@@ -123,7 +125,9 @@ Only flag messages that clearly violate one of the rules above.`,
     });
 
     const content = response.choices[0]?.message?.content || "";
-    const result = JSON.parse(content) as ModerationResult;
+    // Strip markdown code blocks if AI wraps response in ```json ... ```
+    const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleaned) as ModerationResult;
 
     return {
       isToxic: result.isToxic || false,
