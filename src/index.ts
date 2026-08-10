@@ -140,15 +140,6 @@ Thank you for helping us maintain a respectful and properly organised community.
     if (msg.key.fromMe) return;
 
     const remoteJid = msg.key.remoteJid || "";
-
-    // Only moderate group chats (group JIDs end with @g.us)
-    if (!remoteJid.endsWith("@g.us")) return;
-
-    // If a specific group is configured, only moderate that group
-    if (config.whatsapp.groupId && remoteJid !== config.whatsapp.groupId) {
-      return;
-    }
-
     const text = getMessageText(msg);
     const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
 
@@ -161,6 +152,11 @@ Thank you for helping us maintain a respectful and properly organised community.
     }
 
     // ── Group chat → moderation ──────────────────────────────────────────────
+    // If a specific group is configured, only moderate that group
+    if (config.whatsapp.groupId && remoteJid !== config.whatsapp.groupId) {
+      return;
+    }
+
     if (!text && !isMedia) return;
 
     if (text) {

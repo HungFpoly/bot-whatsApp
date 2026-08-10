@@ -1,5 +1,8 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import { google } from "googleapis";
+import * as XLSX from "xlsx";
+import * as fs from "fs";
+import * as path from "path";
 import { config } from "./config";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +25,62 @@ interface OnboardingSession {
   status?: string;
   email?: string;
   reminderSent?: boolean;
+  unitValidationAttempts?: number;
+}
+
+// ── Unit validation cache ────────────────────────────────────────────────────
+
+let validUnitsCache: Set<string> | null = null;
+
+async function loadValidUnits(): Promise<Set<string>> {
+  if (validUnitsCache) return validUnitsCache;
+
+  try {
+    const excelPath = path.resolve("Laguna Park Unit Numbers.xlsx");
+    
+    if (!fs.existsSync(excelPath)) {
+      console.error("[ONBOARDING] Excel file not found:", excelPath);
+      return new Set();
+    }
+
+    const workbook = XLSX.readFile(excelPath);
+    const firstSheet = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheet];
+    
+    // Get all values from the sheet as array of arrays
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: "",
+    }) as unknown[][];
+
+    const units = new Set<string>();
+
+    // Extract unit numbers from all cells
+    rows.forEach((row) => {
+      if (Array.isArray(row)) {
+        row.forEach((cell) => {
+          if (cell !== null && cell !== undefined && cell !== "") {
+            const unitNumber = String(cell).trim().toUpperCase();
+            if (unitNumber && unitNumber !== "UNIT") {
+              units.add(unitNumber);
+            }
+          }
+        });
+      }
+    });
+
+    validUnitsCache = units;
+    console.log(`[ONBOARDING] Loaded ${units.size} valid units from Excel`);
+    return units;
+  } catch (error) {
+    console.error("[ONBOARDING] Error loading units from Excel:", error);
+    return new Set();
+  }
+}
+
+function isValidUnit(unit: string): boolean {
+  if (!validUnitsCache) return false;
+  return validUnitsCache.has(unit.toUpperCase());
 }
 
 // ── In-memory session store ──────────────────────────────────────────────────
@@ -86,7 +145,34 @@ By replying *I AGREE* you confirm that:
 Please reply *I AGREE* to continue.
 If you do not agree, please do not proceed.`;
 
-// ── Google Sheets ────────────────────────────────────────────────────────────
+// ── Admin notification ───────────────────────────────────────────────────────
+
+async function notifyAdminInvalidUnit(
+  sock: WASocket,
+  resident: {
+    mobileNumber: string;
+    name: string;
+    unitAttempt: string;
+  }
+): Promise<void> {
+  try {
+    const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
+    const message =
+      `⚠️ *ONBOARDING ALERT*\n\n` +
+      `Resident entered invalid unit number:\n\n` +
+      `*Mobile:* ${resident.mobileNumber}\n` +
+      `*Name:* ${resident.name}\n` +
+      `*Unit Entered:* ${resident.unitAttempt}\n\n` +
+      `Please verify and follow up if needed.`;
+
+    await sock.sendMessage(adminJid, { text: message });
+    console.log(
+      `[ONBOARDING] Admin notified about invalid unit from ${resident.mobileNumber}`
+    );
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to notify admin:", error);
+  }
+}
 
 async function appendToSheet(session: OnboardingSession): Promise<void> {
   try {
@@ -144,6 +230,11 @@ export async function handleOnboardingMessage(
   const mobile = senderJid.replace("@s.whatsapp.net", "");
   const normalised = text.trim().toLowerCase();
 
+  // Load valid units on first use
+  if (!validUnitsCache) {
+    await loadValidUnits();
+  }
+
   let session = sessions.get(senderJid);
 
   // ── Step 1: Resident sends "JOIN" ──────────────────────────────────────────
@@ -191,12 +282,43 @@ export async function handleOnboardingMessage(
     return;
   }
 
-  // ── Step 4: Unit Number ────────────────────────────────────────────────────
+  // ── Step 4: Unit Number with validation ────────────────────────────────────
   if (session.step === "awaiting_unit") {
-    session.unit = text.trim().toUpperCase();
+    const unitInput = text.trim().toUpperCase();
+    session.unitValidationAttempts = (session.unitValidationAttempts || 0) + 1;
+
+    if (isValidUnit(unitInput)) {
+      // Valid unit — proceed
+      session.unit = unitInput;
+      session.step = "awaiting_status";
+      await sock.sendMessage(senderJid, {
+        text: "Please select your status:\n\n1. *SP* (Subsidiary Proprietor)\n2. *Resident*\n3. *Tenant*\n\nReply with SP, Resident, or Tenant:",
+      });
+      return;
+    }
+
+    // Invalid unit
+    if (session.unitValidationAttempts === 1) {
+      // First attempt — ask again
+      await sock.sendMessage(senderJid, {
+        text: `Unit *${unitInput}* is not found in our system. Please check and try again, or contact the admin if you believe this is an error.`,
+      });
+      return;
+    }
+
+    // Second attempt — accept but notify admin
+    session.unit = unitInput;
     session.step = "awaiting_status";
+
+    // Notify admin about the invalid unit
+    await notifyAdminInvalidUnit(sock, {
+      mobileNumber: mobile,
+      name: session.name || "Unknown",
+      unitAttempt: unitInput,
+    });
+
     await sock.sendMessage(senderJid, {
-      text: "Please select your status:\n\n1. *SP* (Subsidiary Proprietor)\n2. *Resident*\n3. *Tenant*\n\nReply with SP, Resident, or Tenant:",
+      text: "Thank you. We've recorded your unit number. Please note that our records may take time to update.\n\nPlease select your status:\n\n1. *SP* (Subsidiary Proprietor)\n2. *Resident*\n3. *Tenant*\n\nReply with SP, Resident, or Tenant:",
     });
     return;
   }

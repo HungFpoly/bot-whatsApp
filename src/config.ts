@@ -11,6 +11,7 @@ export const config = {
     groupId: process.env.WHATSAPP_GROUP_ID || "",
     sessionPath: process.env.WHATSAPP_SESSION_PATH || "./session",
     phoneNumber: process.env.WHATSAPP_PHONE_NUMBER || "",
+    adminNumber: process.env.ADMIN_WHATSAPP_NUMBER || "",
   },
   bot: {
     minMessageLength: parseInt(process.env.MIN_MESSAGE_LENGTH || "5", 10),
