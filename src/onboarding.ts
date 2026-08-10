@@ -208,7 +208,7 @@ export async function handleOnboardingMessage(
   text: string
 ): Promise<void> {
   const mobile = senderJid.replace("@s.whatsapp.net", "");
-  const normalised = text.trim().toLowerCase();
+  let normalised = text.trim().toLowerCase().replace(/^\*|\*$/g, '').trim();
 
   // Load valid units on first use
   if (!validUnitsCache) {
