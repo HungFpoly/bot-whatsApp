@@ -20,6 +20,7 @@ interface OnboardingSession {
   email?: string;
   reminderSent?: boolean;
   unitValidationAttempts?: number;
+  inviteLinkTimestamp?: string; // Timestamp when invite link was generated (expires after 2 days)
 }
 
 // ── No longer needed - unit validation removed ────────────────────────────────
@@ -136,6 +137,9 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
       return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     };
 
+    // Note: Column headers in Google Sheet:
+    // A: WhatsApp Number, B: Name, C: Unit Number, D: Resident Type, E: Email, 
+    // F: Registration Date & Time, G: Privacy Notice Version, H: Consent
     const row = [
       session.mobileNumber,
       session.name || "",
@@ -160,16 +164,29 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
   }
 }
 
-// ── Invite link ──────────────────────────────────────────────────────────────
+// ── Invite link (expires after 2 days) ───────────────────────────────────────
 
 async function getAndRevokeInviteLink(
   sock: WASocket,
   groupJid: string
-): Promise<string> {
+): Promise<{ link: string; expiresAt: string }> {
   const code = await sock.groupInviteCode(groupJid);
   const link = `https://chat.whatsapp.com/${code}`;
-  // Keep link active - don't revoke immediately
-  return link;
+  
+  // Link expires after 2 days
+  const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+  
+  // Schedule revoke after 2 days
+  setTimeout(async () => {
+    try {
+      await sock.groupRevokeInvite(groupJid);
+      console.log(`[ONBOARDING] Invite link revoked for group after 2 days`);
+    } catch (err) {
+      console.error(`[ONBOARDING] Failed to revoke invite link:`, err);
+    }
+  }, 2 * 24 * 60 * 60 * 1000); // 2 days in milliseconds
+  
+  return { link, expiresAt };
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -243,7 +260,7 @@ export async function handleOnboardingMessage(
       session.step = "awaiting_form";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: `*✅ Consent recorded.*\n\nPlease reply with:\n\nName:\n\nUnit:\n\nStatus: SP / Resident / Tenant\n\nEmail: Optional`,
+        text: `*✅ Consent recorded.*\nPlease reply with:\nName:\nUnit:\nResident Type: SP / Resident / Tenant\nEmail: Optional`,
       });
       return;
     }
@@ -272,7 +289,7 @@ export async function handleOnboardingMessage(
         name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
       } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
         unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
-      } else if (lowerLine.startsWith("status:")) {
+      } else if (lowerLine.startsWith("resident type:") || lowerLine.startsWith("status:")) {
         status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
       } else if (lowerLine.startsWith("email:")) {
         email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
@@ -296,7 +313,7 @@ export async function handleOnboardingMessage(
 
     if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
       await sock.sendMessage(senderJid, {
-        text: "❌ Status must be one of: SP, Resident, or Tenant. Please fill the form again.",
+        text: "❌ Resident Type must be one of: SP, Resident, or Tenant. Please fill the form again.",
       });
       return;
     }
@@ -327,10 +344,14 @@ async function completeOnboarding(
   // Save to Google Sheet
   await appendToSheet(session);
 
-  // Get invite link
+  // Get invite link (expires after 2 days)
   let inviteLink = "";
+  let expiresAt = "";
   try {
-    inviteLink = await getAndRevokeInviteLink(sock, config.whatsapp.groupId);
+    const result = await getAndRevokeInviteLink(sock, config.whatsapp.groupId);
+    inviteLink = result.link;
+    expiresAt = result.expiresAt;
+    session.inviteLinkTimestamp = expiresAt;
   } catch (err) {
     console.error("[ONBOARDING] Failed to get invite link:", err);
   }
@@ -338,15 +359,18 @@ async function completeOnboarding(
   // Send confirmation + invite
   await sock.sendMessage(senderJid, {
     text:
-      `*✅ Registration received*\n\n` +
-      `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
-      `Welcome to the Laguna Park Official WhatsApp Community.\n\n` +
-      `*👇 TAP BELOW TO JOIN THE COMMUNITY*\n\n` +
+      `*✅ Registration received*\n` +
+      `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n` +
+      `Welcome to the Laguna Park Official WhatsApp Community.\n` +
+      `*👇 TAP BELOW TO JOIN THE COMMUNITY*\n` +
       (inviteLink || "Please contact the admin for the invite link.") +
-      `\n\nMembership is subject to subsequent verification.`,
+      `\nMembership is subject to subsequent verification.`,
   });
 
   console.log(`[ONBOARDING] ✅ Completed for ${session.mobileNumber} — ${session.name} Unit ${session.unit}`);
+  if (expiresAt) {
+    console.log(`[ONBOARDING] Link expires at: ${expiresAt}`);
+  }
 
   // Clean up session
   sessions.delete(senderJid);
