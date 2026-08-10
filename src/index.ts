@@ -119,10 +119,23 @@ Thank you for helping us maintain a respectful and properly organised community.
   // Persist credentials whenever they update
   sock.ev.on("creds.update", saveCreds);
 
+  // Debug: log all events
+  sock.ev.on("connection.update", (update) => {
+    console.log("[DEBUG] connection.update:", Object.keys(update));
+  });
+
   // Incoming messages
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    console.log(`[DEBUG] messages.upsert event: type=${type}, count=${messages.length}`);
-    if (type !== "notify") return;
+    console.log(`[DEBUG] ⭐ messages.upsert EVENT FIRED: type=${type}, count=${messages.length}`);
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      console.log(`  [${i}] remoteJid=${msg.key.remoteJid}, fromMe=${msg.key.fromMe}, hasMessage=${!!msg.message}`);
+    }
+    
+    if (type !== "notify") {
+      console.log(`[DEBUG] Skipping type=${type}, only handling 'notify'`);
+      return;
+    }
 
     for (const msg of messages) {
       try {
