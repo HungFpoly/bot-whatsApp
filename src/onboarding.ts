@@ -160,13 +160,52 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     const sheets = google.sheets({ version: "v4", auth });
 
+    // Check if header exists (if sheet is empty, add header first)
+    const getResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.google.sheetId,
+      range: "Sheet1!A1:A1",
+    });
+
+    if (!getResponse.data.values || getResponse.data.values.length === 0) {
+      // Add header row
+      const header = [
+        "WhatsApp Number",
+        "Name",
+        "Unit Number",
+        "Status",
+        "Email",
+        "Registration Date & Time",
+        "Privacy Notice Version",
+        "Consent",
+      ];
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: config.google.sheetId,
+        range: "Sheet1!A:H",
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [header] },
+      });
+      console.log(`[ONBOARDING] Header row added to Google Sheet`);
+    }
+
+    // Format timestamp: DD/MM/YYYY HH:MM:SS
+    const formatTimestamp = (isoString: string): string => {
+      const date = new Date(isoString);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const seconds = String(date.getSeconds()).padStart(2, "0");
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    };
+
     const row = [
       session.mobileNumber,
       session.name || "",
       session.unit || "",
       session.status || "",
       session.email || "",
-      session.consentTimestamp || "",
+      formatTimestamp(session.consentTimestamp || new Date().toISOString()),
       "Privacy Notice v1.0",
       "I AGREE",
     ];
