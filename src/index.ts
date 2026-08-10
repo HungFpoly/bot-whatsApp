@@ -9,7 +9,7 @@ import pino from "pino";
 const qrcode = require("qrcode-terminal");
 import { config } from "./config";
 import { moderateMessage, getMessageText } from "./moderation";
-import { handleOnboardingMessage } from "./onboarding";
+import { handleOnboardingMessage, initContactMapping } from "./onboarding";
 
 const logger = pino({ level: "warn" });
 
@@ -31,6 +31,9 @@ async function startBot() {
   });
 
   console.log("[DEBUG] Socket created, waiting for events...");
+
+  // Initialize contact mapping for phone number extraction
+  initContactMapping(sock);
 
   let pairingRequested = false;
 

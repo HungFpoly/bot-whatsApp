@@ -29,9 +29,32 @@ interface OnboardingSession {
 // async function loadValidUnits(): Promise<Set<string>> { ... }
 // function isValidUnit(unit: string): boolean { ... }
 
-// ── In-memory session store ──────────────────────────────────────────────────
+// ── Contact mapping cache (LID → Phone Number) ──────────────────────────────
 
-const sessions = new Map<string, OnboardingSession>();
+const contactMap = new Map<string, string>(); // LID → Phone Number
+
+function buildContactMap(sock: WASocket): void {
+  try {
+    sock.ev.on("contacts.upsert", (contacts) => {
+      contacts.forEach((contact) => {
+        // contact.id is the primary identifier (could be LID or PN)
+        // contact.phoneNumber has the phone in PN format
+        if (contact.phoneNumber) {
+          // Extract phone without @s.whatsapp.net suffix
+          const phone = contact.phoneNumber.replace("@s.whatsapp.net", "");
+          // If contact.lid exists, map it
+          if (contact.lid) {
+            const lid = contact.lid.replace("@lid", "");
+            contactMap.set(lid, phone);
+            console.log(`[ONBOARDING] Contact map: ${lid} → ${phone}`);
+          }
+        }
+      });
+    });
+  } catch (err) {
+    console.error(`[ONBOARDING] Error building contact map: ${err}`);
+  }
+}
 
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
@@ -148,25 +171,38 @@ async function getAndRevokeInviteLink(
 
 // ── Main handler ─────────────────────────────────────────────────────────────
 
+export function initContactMapping(sock: WASocket): void {
+  buildContactMap(sock);
+}
+
 export async function handleOnboardingMessage(
   sock: WASocket,
   senderJid: string,
   text: string
 ): Promise<void> {
-  // Extract phone number from JID using LIDMappingStore
+  // Extract phone number from JID using contact map or LIDMappingStore
   let mobile = senderJid.replace("@s.whatsapp.net", "").replace("@lid", "");
   
-  // If LID format, try to get real phone number from mapping
+  // If LID format, try to get real phone number
   if (senderJid.includes("@lid")) {
-    try {
-      const lid = senderJid.replace("@lid", "");
-      const phoneNumber = await sock.signalRepository.lidMapping.getPNForLID(lid);
-      if (phoneNumber) {
-        mobile = phoneNumber;
-        console.log(`[ONBOARDING] Converted LID to phone: ${mobile}`);
+    const lid = senderJid.replace("@lid", "");
+    
+    // Try contact map first
+    if (contactMap.has(lid)) {
+      mobile = contactMap.get(lid)!;
+      console.log(`[ONBOARDING] Got phone from contact map: ${mobile}`);
+    } else {
+      // Try LIDMappingStore
+      try {
+        const phoneNumber = await sock.signalRepository.lidMapping.getPNForLID(lid);
+        if (phoneNumber) {
+          mobile = phoneNumber;
+          contactMap.set(lid, phoneNumber); // Cache it
+          console.log(`[ONBOARDING] Got phone from LIDMapping: ${mobile}`);
+        }
+      } catch (err) {
+        console.log(`[ONBOARDING] Could not convert LID: ${err}`);
       }
-    } catch (err) {
-      console.log(`[ONBOARDING] Could not convert LID to phone: ${err}`);
     }
   }
 
