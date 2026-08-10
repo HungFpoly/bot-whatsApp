@@ -4,3 +4,4 @@ dist/
 session/
 *.log
 *.xlsx
+service-account.json
