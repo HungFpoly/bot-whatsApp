@@ -41,34 +41,25 @@ Privacy & Consent Notice — v1.0
 
 This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
-To register you, we may collect your WhatsApp number, name, unit number, declared status (SP / resident / tenant), optional email, and consent/verification records.
+To register you, we may collect your WhatsApp number, name, unit number, status (SP / resident / tenant), optional email and verification records.
 
-Your information will be used to:
-* verify and administer your Community membership
-* provide estate announcements and updates
-* share information on activities and events
-* conduct polls, surveys and resident engagement
-* facilitate estate-related communications
+Your information will be used to verify and administer your membership and for official estate communications, announcements, events, polls, surveys and resident engagement. Your details may be checked against the strata roll, MCST and/or Management Office records.
 
-Your details may be checked against the strata roll, MCST records and/or Management Office records.
-
-Verification may take place after you join. If your eligibility cannot be confirmed, MCST 3271 may contact you for clarification or remove your access.
+Verification may take place after you join. Access may be removed if eligibility cannot be confirmed.
 
 The Community includes a General Chat. If you participate, your WhatsApp number and profile information may be visible to other members.
 
-Participation is voluntary. You may leave the Community or withdraw your consent for WhatsApp communications at any time.
+Participation is voluntary. You may leave or withdraw consent for WhatsApp communications at any time.
 
-For privacy enquiries:
+Privacy enquiries:
 
-Secretary
-
-MCST Plan No. 3271 – Laguna Park
+Secretary, MCST 3271
 
 mcst3271.council@gmail.com
 
-By replying I AGREE, you confirm that you have read and understood this notice and consent to MCST 3271 collecting, using and, where reasonably necessary, disclosing your personal data for the purposes above.
+By replying I AGREE, you consent to MCST 3271 collecting, using and disclosing your personal data for the purposes above.
 
-Please reply: I AGREE to continue.`;
+Reply I AGREE to continue.`;
 
 
 // ── Admin notification ───────────────────────────────────────────────────────
@@ -112,7 +103,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
     // Check if header exists (if sheet is empty, add header first)
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: config.google.sheetId,
-      range: "Members!A1:A1",
+      range: "Sheet1!A1:A1",
     });
 
     if (!getResponse.data.values || getResponse.data.values.length === 0) {
@@ -129,7 +120,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
       ];
       await sheets.spreadsheets.values.append({
         spreadsheetId: config.google.sheetId,
-        range: "Members!A:H",
+        range: "Sheet1!A:H",
         valueInputOption: "USER_ENTERED",
         requestBody: { values: [header] },
       });
@@ -161,7 +152,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: config.google.sheetId,
-      range: "Members!A:H",
+      range: "Sheet1!A:H",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     });
@@ -192,7 +183,8 @@ export async function handleOnboardingMessage(
   senderJid: string,
   text: string
 ): Promise<void> {
-  const mobile = senderJid.replace("@s.whatsapp.net", "");
+  // Extract clean phone number from JID (remove @s.whatsapp.net or @lid suffix)
+  const mobile = senderJid.replace("@s.whatsapp.net", "").replace("@lid", "");
   let normalised = text.trim().toLowerCase().replace(/^\*|\*$/g, '').trim();
 
   let session = sessions.get(senderJid);
