@@ -153,9 +153,24 @@ export async function handleOnboardingMessage(
   senderJid: string,
   text: string
 ): Promise<void> {
-  // Extract phone number from JID (remove @s.whatsapp.net or @lid suffix)
-  // Format: 6591234567@s.whatsapp.net or 6591234567@lid → 6591234567
+  // Extract phone number from JID or contact metadata
   let mobile = senderJid.replace("@s.whatsapp.net", "").replace("@lid", "");
+  
+  // Try to get actual phone number from contact metadata
+  try {
+    const contacts = await sock.contacts.get(senderJid);
+    if (contacts && contacts.id) {
+      // contacts.id format might contain phone number
+      const contactId = contacts.id.replace("@s.whatsapp.net", "").replace("@lid", "");
+      if (contactId && contactId.match(/^\d+$/)) {
+        mobile = contactId;
+        console.log(`[ONBOARDING] Got phone from contact metadata: ${mobile}`);
+      }
+    }
+  } catch (err) {
+    console.log(`[ONBOARDING] Could not fetch contact metadata: ${err}`);
+  }
+
   let normalised = text.trim().toLowerCase().replace(/^\*|\*$/g, '').trim();
 
   let session = sessions.get(senderJid);
