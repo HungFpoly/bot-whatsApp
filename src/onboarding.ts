@@ -288,6 +288,7 @@ export async function handleOnboardingMessage(
     }
 
     if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
+      console.log(`[ONBOARDING] DEBUG: Invalid status "${status}" parsed from form`);
       await sock.sendMessage(senderJid, {
         text: "❌ Status must be one of: SP, Resident, or Tenant. Please fill the form again.",
       });
