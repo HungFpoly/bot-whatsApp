@@ -263,16 +263,16 @@ export async function handleOnboardingMessage(
       console.log(`[ONBOARDING] Processing line: "${line}" (lower: "${lowerLine}")`);
       
       if (lowerLine.startsWith("name:")) {
-        name = line.substring(line.indexOf(":") + 1).trim();
+        name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
         console.log(`[ONBOARDING] Extracted name: "${name}"`);
       } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
-        unit = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+        unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
         console.log(`[ONBOARDING] Extracted unit: "${unit}"`);
       } else if (lowerLine.startsWith("status:")) {
-        status = line.substring(line.indexOf(":") + 1).trim().replace(/\s+/g, '').toUpperCase();
+        status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
         console.log(`[ONBOARDING] Extracted status: "${status}"`);
       } else if (lowerLine.startsWith("email:")) {
-        email = line.substring(line.indexOf(":") + 1).trim();
+        email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
         console.log(`[ONBOARDING] Extracted email: "${email}"`);
       }
     }
