@@ -10,10 +10,7 @@ import { config } from "./config";
 type OnboardingStep =
   | "awaiting_join"
   | "awaiting_agree"
-  | "awaiting_name"
-  | "awaiting_unit"
-  | "awaiting_status"
-  | "awaiting_email"
+  | "awaiting_form"
   | "complete";
 
 interface OnboardingSession {
@@ -237,10 +234,10 @@ export async function handleOnboardingMessage(
   // ── Step 2: Waiting for "I AGREE" ─────────────────────────────────────────
   if (session.step === "awaiting_agree") {
     if (normalised === "i agree" || /^i\s+agree\s*$/.test(normalised)) {
-      session.step = "awaiting_name";
+      session.step = "awaiting_form";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: `✅ *Thank you. Your consent has been recorded.*\n\nTo complete your registration, please provide:\n\n*Name:*\n*Unit Number:*\n*Status:* SP / Resident / Tenant\n*Email:* Optional\n\nPlease ensure the information provided is accurate.`,
+        text: `✅ *Thank you. Your consent has been recorded.*\n\nTo complete your registration, please copy and fill in this form:\n\n*Name:* \n*Unit Number:* \n*Status:* \n*Email:* \n\nThen send it back to us.\n\nStatus options: SP, Resident, or Tenant\nEmail is optional`,
       });
       return;
     }
@@ -255,84 +252,67 @@ export async function handleOnboardingMessage(
     return;
   }
 
-  // ── Step 3: Full Name ──────────────────────────────────────────────────────
-  if (session.step === "awaiting_name") {
-    session.name = text.trim();
-    session.step = "awaiting_unit";
-    await sock.sendMessage(senderJid, {
-      text: "Please enter your *Unit Number* (e.g. D01-01):",
-    });
-    return;
-  }
+  // ── Step 3: Parse form submission ─────────────────────────────────────────
+  if (session.step === "awaiting_form") {
+    // Parse form: extract Name, Unit Number, Status, Email
+    const lines = text.split('\n').map(line => line.trim()).filter(l => l);
+    
+    let name = "", unit = "", status = "", email = "";
+    
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith("name:")) {
+        name = line.substring(5).trim();
+      } else if (line.toLowerCase().startsWith("unit number:") || line.toLowerCase().startsWith("unit:")) {
+        unit = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+      } else if (line.toLowerCase().startsWith("status:")) {
+        status = line.substring(7).trim().toUpperCase();
+      } else if (line.toLowerCase().startsWith("email:")) {
+        email = line.substring(6).trim();
+      }
+    }
 
-  // ── Step 4: Unit Number with validation ────────────────────────────────────
-  if (session.step === "awaiting_unit") {
-    const unitInput = text.trim().toUpperCase();
+    // Validate required fields
+    if (!name || name.length < 2) {
+      await sock.sendMessage(senderJid, {
+        text: "❌ Name is required and must be at least 2 characters. Please fill the form again.",
+      });
+      return;
+    }
+
+    if (!unit || unit.length < 2) {
+      await sock.sendMessage(senderJid, {
+        text: "❌ Unit Number is required. Please fill the form again.",
+      });
+      return;
+    }
+
+    if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
+      await sock.sendMessage(senderJid, {
+        text: "❌ Status must be one of: SP, Resident, or Tenant. Please fill the form again.",
+      });
+      return;
+    }
+
+    // Check unit validity
     session.unitValidationAttempts = (session.unitValidationAttempts || 0) + 1;
-
-    if (isValidUnit(unitInput)) {
-      // Valid unit — proceed
-      session.unit = unitInput;
-      session.step = "awaiting_status";
-      await sock.sendMessage(senderJid, {
-        text: "Please select your status:\n\n1. *SP* (Subsidiary Proprietor)\n2. *Resident*\n3. *Tenant*\n\nReply with SP, Resident, or Tenant:",
+    
+    if (!isValidUnit(unit) && session.unitValidationAttempts > 1) {
+      // Second attempt with invalid unit — notify admin
+      await notifyAdminInvalidUnit(sock, {
+        mobileNumber: mobile,
+        name: name,
+        unitAttempt: unit,
       });
-      return;
     }
 
-    // Invalid unit
-    if (session.unitValidationAttempts === 1) {
-      // First attempt — ask again
-      await sock.sendMessage(senderJid, {
-        text: `Unit *${unitInput}* is not found in our system. Please check and try again, or contact the admin if you believe this is an error.`,
-      });
-      return;
-    }
-
-    // Second attempt — accept but notify admin
-    session.unit = unitInput;
-    session.step = "awaiting_status";
-
-    // Notify admin about the invalid unit
-    await notifyAdminInvalidUnit(sock, {
-      mobileNumber: mobile,
-      name: session.name || "Unknown",
-      unitAttempt: unitInput,
-    });
-
-    await sock.sendMessage(senderJid, {
-      text: "Thank you. We've recorded your unit number. Please note that our records may take time to update.\n\nPlease select your status:\n\n1. *SP* (Subsidiary Proprietor)\n2. *Resident*\n3. *Tenant*\n\nReply with SP, Resident, or Tenant:",
-    });
-    return;
-  }
-
-  // ── Step 5: Status ─────────────────────────────────────────────────────────
-  if (session.step === "awaiting_status") {
-    const status = text.trim().toUpperCase();
-    if (!["SP", "RESIDENT", "TENANT"].includes(status)) {
-      await sock.sendMessage(senderJid, {
-        text: "Please reply with *SP*, *Resident*, or *Tenant*:",
-      });
-      return;
-    }
+    // Save data
+    session.name = name;
+    session.unit = unit;
     session.status = status;
-
-    if (status === "SP") {
-      session.step = "awaiting_email";
-      await sock.sendMessage(senderJid, {
-        text: "Please enter your *Email Address* (optional — reply *skip* to skip):",
-      });
-    } else {
-      session.step = "complete";
-      await completeOnboarding(sock, senderJid, session);
-    }
-    return;
-  }
-
-  // ── Step 6: Email (SP only, optional) ─────────────────────────────────────
-  if (session.step === "awaiting_email") {
-    session.email = normalised === "skip" ? "" : text.trim();
+    session.email = email || "";
     session.step = "complete";
+
+    // Complete registration
     await completeOnboarding(sock, senderJid, session);
     return;
   }
