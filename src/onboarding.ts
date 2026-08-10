@@ -125,15 +125,17 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Format timestamp: DD/MM/YYYY HH:MM:SS
+    // Format timestamp: DD/MM/YYYY HH:MM:SS (Vietnam timezone UTC+7)
     const formatTimestamp = (isoString: string): string => {
       const date = new Date(isoString);
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const seconds = String(date.getSeconds()).padStart(2, "0");
+      // Convert to Vietnam time (UTC+7)
+      const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000) - (date.getTimezoneOffset() * 60 * 1000));
+      const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
+      const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
+      const year = vietnamTime.getUTCFullYear();
+      const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
+      const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, "0");
+      const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, "0");
       return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     };
 
@@ -362,7 +364,7 @@ async function completeOnboarding(
       `✅ *Registration received*\n\n` +
       `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
       `Welcome to the Laguna Park Official WhatsApp Community.\n\n` +
-      `👇 *TAP BELOW TO JOIN THE COMMUNITY*\n\n` +
+      `👇 *TAP BELOW TO JOIN THE COMMUNITY*\n` +
       (inviteLink || "Please contact the admin for the invite link.") +
       `\n\nMembership is subject to subsequent verification.`,
   });
