@@ -257,20 +257,30 @@ export async function handleOnboardingMessage(
     // Parse form: extract Name, Unit Number, Status, Email
     const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
     
+    console.log(`[ONBOARDING] Form parsing - raw lines: ${JSON.stringify(lines)}`);
+    
     let name = "", unit = "", status = "", email = "";
     
     for (const line of lines) {
       const lowerLine = line.toLowerCase();
+      console.log(`[ONBOARDING] Processing line: "${line}" (lower: "${lowerLine}")`);
+      
       if (lowerLine.startsWith("name:")) {
         name = line.substring(line.indexOf(":") + 1).trim();
+        console.log(`[ONBOARDING] Extracted name: "${name}"`);
       } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
         unit = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+        console.log(`[ONBOARDING] Extracted unit: "${unit}"`);
       } else if (lowerLine.startsWith("status:")) {
         status = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+        console.log(`[ONBOARDING] Extracted status: "${status}"`);
       } else if (lowerLine.startsWith("email:")) {
         email = line.substring(line.indexOf(":") + 1).trim();
+        console.log(`[ONBOARDING] Extracted email: "${email}"`);
       }
     }
+
+    console.log(`[ONBOARDING] Final parsed: name="${name}", unit="${unit}", status="${status}", email="${email}"`);
 
     // Validate required fields
     if (!name || name.length < 2) {
@@ -288,7 +298,7 @@ export async function handleOnboardingMessage(
     }
 
     if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
-      console.log(`[ONBOARDING] DEBUG: Invalid status "${status}" parsed from form`);
+      console.log(`[ONBOARDING] Invalid status "${status}", allowed: ["SP", "RESIDENT", "TENANT"]`);
       await sock.sendMessage(senderJid, {
         text: "❌ Status must be one of: SP, Resident, or Tenant. Please fill the form again.",
       });
