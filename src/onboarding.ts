@@ -86,19 +86,25 @@ const sessions = new Map<string, OnboardingSession>();
 
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
-const PRIVACY_NOTICE = `🔒 *LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
-*Privacy & Consent Notice — v1.0*
+const PRIVACY_NOTICE = `🔒 LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY
+
+Privacy & Consent Notice — v1.0
 
 This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
 To register you, we may collect your WhatsApp number, name, unit number, declared status (SP / resident / tenant), optional email, and consent/verification records.
 
-*Your information will be used to:*
-• verify and administer your Community membership
-• provide estate announcements and updates
-• share information on activities and events
-• conduct polls, surveys and resident engagement
-• facilitate estate-related communications
+Your information will be used to:
+
+* verify and administer your Community membership
+
+* provide estate announcements and updates
+
+* share information on activities and events
+
+* conduct polls, surveys and resident engagement
+
+* facilitate estate-related communications
 
 Your details may be checked against the strata roll, MCST records and/or Management Office records.
 
@@ -108,7 +114,7 @@ The Community includes a General Chat. If you participate, your WhatsApp number 
 
 Participation is voluntary. You may leave the Community or withdraw your consent for WhatsApp communications at any time.
 
-*For privacy enquiries:*
+For privacy enquiries:
 
 Secretary
 
@@ -116,13 +122,9 @@ MCST Plan No. 3271 – Laguna Park
 
 mcst3271.council@gmail.com
 
-────────────────────────
+By replying I AGREE, you confirm that you have read and understood this notice and consent to MCST 3271 collecting, using and, where reasonably necessary, disclosing your personal data for the purposes above.
 
-*CONSENT*
-
-By replying *I AGREE*, you confirm that you have read and understood this notice and consent to MCST 3271 collecting, using and, where reasonably necessary, disclosing your personal data for the purposes above.
-
-Please reply: *I AGREE* to continue.`;
+Please reply: I AGREE to continue.`;
 
 
 // ── Admin notification ───────────────────────────────────────────────────────
