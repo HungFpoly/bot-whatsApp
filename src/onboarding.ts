@@ -35,9 +35,8 @@ const sessions = new Map<string, OnboardingSession>();
 
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
-const PRIVACY_NOTICE = `🔒 LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY
-
-Privacy & Consent Notice — v1.0
+const PRIVACY_NOTICE = `*LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
+*Privacy & Consent Notice — v1.0*
 
 This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
@@ -57,9 +56,9 @@ Secretary, MCST 3271
 
 mcst3271.council@gmail.com
 
-By replying I AGREE, you consent to MCST 3271 collecting, using and disclosing your personal data for the purposes above.
+By replying *I AGREE*, you consent to MCST 3271 collecting, using and disclosing your personal data for the purposes above.
 
-Reply I AGREE to continue.`;
+Reply *I AGREE* to continue.`;
 
 
 // ── Admin notification ───────────────────────────────────────────────────────
@@ -100,33 +99,6 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Check if header exists (if sheet is empty, add header first)
-    const getResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: config.google.sheetId,
-      range: "Sheet1!A1:A1",
-    });
-
-    if (!getResponse.data.values || getResponse.data.values.length === 0) {
-      // Add header row
-      const header = [
-        "WhatsApp Number",
-        "Name",
-        "Unit Number",
-        "Status",
-        "Email",
-        "Registration Date & Time",
-        "Privacy Notice Version",
-        "Consent",
-      ];
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: config.google.sheetId,
-        range: "Sheet1!A:H",
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: [header] },
-      });
-      console.log(`[ONBOARDING] Header row added to Google Sheet`);
-    }
-
     // Format timestamp: DD/MM/YYYY HH:MM:SS
     const formatTimestamp = (isoString: string): string => {
       const date = new Date(isoString);
@@ -152,7 +124,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: config.google.sheetId,
-      range: "Sheet1!A:H",
+      range: "Members!A:H",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     });
