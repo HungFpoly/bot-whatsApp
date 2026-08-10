@@ -51,9 +51,7 @@ The Community includes a General Chat. If you participate, your WhatsApp number 
 Participation is voluntary. You may leave or withdraw consent for WhatsApp communications at any time.
 
 Privacy enquiries:
-
 Secretary, MCST 3271
-
 mcst3271.council@gmail.com
 
 By replying *I AGREE*, you consent to MCST 3271 collecting, using and disclosing your personal data for the purposes above.
