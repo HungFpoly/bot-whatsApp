@@ -243,7 +243,7 @@ export async function handleOnboardingMessage(
       session.step = "awaiting_form";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: `✅ *Thank you. Your consent has been recorded.*\n\nTo complete your registration, please copy and fill in this form:\n\n*Name:* \n*Unit Number:* \n*Status:* \n*Email:* \n\nThen send it back to us.\n\nStatus options: SP, Resident, or Tenant\nEmail is optional`,
+        text: `*✅ Consent recorded.*\n\nPlease reply with:\n\nName:\n\nUnit:\n\nStatus: SP / Resident / Tenant\n\nEmail: Optional`,
       });
       return;
     }
@@ -338,13 +338,12 @@ async function completeOnboarding(
   // Send confirmation + invite
   await sock.sendMessage(senderJid, {
     text:
-      `✅ *Registration complete!*\n\n` +
-      `*Name:* ${session.name}\n` +
-      `*Unit:* ${session.unit}\n` +
-      `*Status:* ${session.status}\n` +
-      (session.email ? `*Email:* ${session.email}\n` : "") +
-      `\nWelcome to Laguna Park! Please use the link below to join the community:\n\n` +
-      (inviteLink || "Please contact the admin for the invite link."),
+      `*✅ Registration received*\n\n` +
+      `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
+      `Welcome to the Laguna Park Official WhatsApp Community.\n\n` +
+      `*👇 TAP BELOW TO JOIN THE COMMUNITY*\n\n` +
+      (inviteLink || "Please contact the admin for the invite link.") +
+      `\n\nMembership is subject to subsequent verification.`,
   });
 
   console.log(`[ONBOARDING] ✅ Completed for ${session.mobileNumber} — ${session.name} Unit ${session.unit}`);
