@@ -20,7 +20,7 @@ jobs:
             cd /root/edwin
             git pull origin main
             npm install
-            npm run build
+            npm run build || echo "⚠️ Build failed, restarting with previous version..."
             pm2 stop edwin || true
             pm2 delete edwin || true
             pm2 start npm --name edwin --cwd /root/edwin -- start

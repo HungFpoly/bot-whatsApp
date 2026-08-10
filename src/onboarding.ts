@@ -272,7 +272,7 @@ export async function handleOnboardingMessage(
         unit = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
         console.log(`[ONBOARDING] Extracted unit: "${unit}"`);
       } else if (lowerLine.startsWith("status:")) {
-        status = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+        status = line.substring(line.indexOf(":") + 1).trim().replace(/\s+/g, '').toUpperCase();
         console.log(`[ONBOARDING] Extracted status: "${status}"`);
       } else if (lowerLine.startsWith("email:")) {
         email = line.substring(line.indexOf(":") + 1).trim();
