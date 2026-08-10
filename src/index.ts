@@ -11,7 +11,7 @@ import { config } from "./config";
 import { moderateMessage, getMessageText } from "./moderation";
 import { handleOnboardingMessage } from "./onboarding";
 
-const logger = pino({ level: "silent" });
+const logger = pino({ level: "warn" });
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(
@@ -26,6 +26,8 @@ async function startBot() {
     version,
     printQRInTerminal: false,
   });
+
+  console.log("[DEBUG] Socket created, waiting for events...");
 
   let pairingRequested = false;
 
@@ -119,10 +121,8 @@ Thank you for helping us maintain a respectful and properly organised community.
   // Persist credentials whenever they update
   sock.ev.on("creds.update", saveCreds);
 
-  // Debug: log all events
-  sock.ev.on("connection.update", (update) => {
-    console.log("[DEBUG] connection.update:", Object.keys(update));
-  });
+  // Debug: log all event registrations
+  console.log("[DEBUG] Registering sock.ev.on listeners...");
 
   // Incoming messages
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -146,6 +146,8 @@ Thank you for helping us maintain a respectful and properly organised community.
       }
     }
   });
+
+  console.log("[DEBUG] Event listeners registered successfully");
 
   async function handleMessage(sock: ReturnType<typeof makeWASocket>, msg: WAMessage) {
     // Ignore messages without content
