@@ -260,7 +260,7 @@ export async function handleOnboardingMessage(
       session.step = "awaiting_form";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: `*✅ Consent recorded.*\nPlease reply with:\nName:\nUnit:\nResident Type: SP / Resident / Tenant\nEmail: Optional`,
+        text: `✅ *Consent recorded.*\n\nPlease reply with:\n\nName:\nUnit:\nResident Type: SP / Resident / Tenant\nEmail: Optional`,
       });
       return;
     }
@@ -359,12 +359,12 @@ async function completeOnboarding(
   // Send confirmation + invite
   await sock.sendMessage(senderJid, {
     text:
-      `*✅ Registration received*\n` +
-      `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n` +
-      `Welcome to the Laguna Park Official WhatsApp Community.\n` +
-      `*👇 TAP BELOW TO JOIN THE COMMUNITY*\n` +
+      `✅ *Registration received*\n\n` +
+      `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
+      `Welcome to the Laguna Park Official WhatsApp Community.\n\n` +
+      `👇 *TAP BELOW TO JOIN THE COMMUNITY*\n\n` +
       (inviteLink || "Please contact the admin for the invite link.") +
-      `\nMembership is subject to subsequent verification.`,
+      `\n\nMembership is subject to subsequent verification.`,
   });
 
   console.log(`[ONBOARDING] ✅ Completed for ${session.mobileNumber} — ${session.name} Unit ${session.unit}`);
