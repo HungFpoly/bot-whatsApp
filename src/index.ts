@@ -9,6 +9,7 @@ import pino from "pino";
 const qrcode = require("qrcode-terminal");
 import { config } from "./config";
 import { moderateMessage, getMessageText } from "./moderation";
+import { handleOnboardingMessage } from "./onboarding";
 
 const logger = pino({ level: "silent" });
 
@@ -151,6 +152,15 @@ Thank you for helping us maintain a respectful and properly organised community.
     const text = getMessageText(msg);
     const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
 
+    // ── Private chat → onboarding flow ──────────────────────────────────────
+    if (!remoteJid.endsWith("@g.us")) {
+      if (text) {
+        await handleOnboardingMessage(sock, remoteJid, text);
+      }
+      return;
+    }
+
+    // ── Group chat → moderation ──────────────────────────────────────────────
     if (!text && !isMedia) return;
 
     if (text) {

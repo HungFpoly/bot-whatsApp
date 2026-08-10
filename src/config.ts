@@ -28,5 +28,9 @@ export const config = {
       process.env.QUIET_HOURS_MESSAGE ||
       "🌙 Quiet hours reminder (11pm – 7am): Please be mindful of the time. Thank you for keeping the group peaceful!",
   },
+  google: {
+    sheetId: process.env.GOOGLE_SHEET_ID || "",
+    serviceAccountKeyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || "./service-account.json",
+  },
   port: parseInt(process.env.PORT || "3000", 10),
 };
