@@ -302,17 +302,8 @@ export async function handleOnboardingMessage(
       return;
     }
 
-    // Check unit validity
-    session.unitValidationAttempts = (session.unitValidationAttempts || 0) + 1;
-    
-    if (!isValidUnit(unit) && session.unitValidationAttempts > 1) {
-      // Second attempt with invalid unit — notify admin
-      await notifyAdminInvalidUnit(sock, {
-        mobileNumber: mobile,
-        name: name,
-        unitAttempt: unit,
-      });
-    }
+    // No strict unit validation — just accept any format (19-08, C19-08, etc)
+    // Admin will verify manually after registration
 
     // Save data
     session.name = name;
