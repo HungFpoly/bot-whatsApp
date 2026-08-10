@@ -175,6 +175,7 @@ Thank you for helping us maintain a respectful and properly organised community.
     // ── Group chat → moderation ──────────────────────────────────────────────
     // If a specific group is configured, only moderate that group
     if (config.whatsapp.groupId && remoteJid !== config.whatsapp.groupId) {
+      console.log(`[DEBUG] Ignoring message from different group: ${remoteJid}`);
       return;
     }
 
