@@ -255,19 +255,20 @@ export async function handleOnboardingMessage(
   // ── Step 3: Parse form submission ─────────────────────────────────────────
   if (session.step === "awaiting_form") {
     // Parse form: extract Name, Unit Number, Status, Email
-    const lines = text.split('\n').map(line => line.trim()).filter(l => l);
+    const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
     
     let name = "", unit = "", status = "", email = "";
     
     for (const line of lines) {
-      if (line.toLowerCase().startsWith("name:")) {
-        name = line.substring(5).trim();
-      } else if (line.toLowerCase().startsWith("unit number:") || line.toLowerCase().startsWith("unit:")) {
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.startsWith("name:")) {
+        name = line.substring(line.indexOf(":") + 1).trim();
+      } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
         unit = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
-      } else if (line.toLowerCase().startsWith("status:")) {
-        status = line.substring(7).trim().toUpperCase();
-      } else if (line.toLowerCase().startsWith("email:")) {
-        email = line.substring(6).trim();
+      } else if (lowerLine.startsWith("status:")) {
+        status = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+      } else if (lowerLine.startsWith("email:")) {
+        email = line.substring(line.indexOf(":") + 1).trim();
       }
     }
 
