@@ -236,7 +236,7 @@ export async function handleOnboardingMessage(
 
   // ── Step 2: Waiting for "I AGREE" ─────────────────────────────────────────
   if (session.step === "awaiting_agree") {
-    if (normalised === "i agree") {
+    if (normalised === "i agree" || /^i\s+agree\s*$/.test(normalised)) {
       session.step = "awaiting_name";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
