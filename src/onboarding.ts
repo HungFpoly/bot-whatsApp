@@ -240,7 +240,7 @@ export async function handleOnboardingMessage(
       session.step = "awaiting_name";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: "Thank you for agreeing. ✅\n\nPlease enter your *Full Name*:",
+        text: `✅ *Thank you. Your consent has been recorded.*\n\nTo complete your registration, please provide:\n\n*Name:*\n*Unit Number:*\n*Status:* SP / Resident / Tenant\n*Email:* Optional\n\nPlease ensure the information provided is accurate.`,
       });
       return;
     }
