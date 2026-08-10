@@ -89,61 +89,49 @@ const sessions = new Map<string, OnboardingSession>();
 
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
-const PRIVACY_NOTICE = `*LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
-*Privacy & Consent Notice — Version 1.0*
+const PRIVACY_NOTICE = `🔒 *LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
+*Privacy & Consent Notice — v1.0*
 
-Welcome to the official WhatsApp Community operated by The Management Corporation Strata Title Plan No. 3271 (MCST 3271) – Laguna Park.
+This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
-Before proceeding, please read this Privacy & Consent Notice.
+To register you, we may collect your WhatsApp number, name, unit number, declared status (SP / resident / tenant), optional email, and consent/verification records.
 
-*Information we collect*
+*Your information will be used to:*
 
-For registration and administration of the Community, MCST 3271 may collect and use:
-• your WhatsApp mobile number;
-• your name;
-• your unit number;
-• your declared status as a Subsidiary Proprietor (SP), resident or tenant;
-• your email address, if voluntarily provided; and
-• your registration, consent and verification records.
+• verify and administer your Community membership
 
-*How your information will be used*
+• provide estate announcements and updates
 
-Your information may be used to:
-• register and administer your membership of the Laguna Park Official WhatsApp Community;
-• verify, where reasonably practicable, your association with Laguna Park;
-• provide official estate announcements, notices and updates;
-• communicate information relating to estate matters, activities and events;
-• conduct polls, surveys and resident engagement exercises;
-• facilitate estate-related feedback and communications; and
-• support the proper administration and moderation of the Community.
+• share information on activities and events
 
-Verification may take place *after you are admitted to the Community*. If your eligibility cannot subsequently be verified, MCST 3271 may contact you for clarification and may restrict or remove your access.
+• conduct polls, surveys and resident engagement
 
-*General Chat*
+• facilitate estate-related communications
 
-If you join or participate in the General Chat, your WhatsApp mobile number, profile name, profile photograph and other information made available through WhatsApp may be visible to other participants.
+Your details may be checked against the strata roll, MCST records and/or Management Office records.
 
-Please do not share another person's personal information without appropriate authority or consent.
+Verification may take place after you join. If your eligibility cannot be confirmed, MCST 3271 may contact you for clarification or remove your access.
 
-*Voluntary participation*
+The Community includes a General Chat. If you participate, your WhatsApp number and profile information may be visible to other members.
 
-Participation is voluntary. You may leave the Community at any time or request MCST 3271 to stop using your personal data for WhatsApp Community communications.
+Participation is voluntary. You may leave the Community or withdraw your consent for WhatsApp communications at any time.
 
-For privacy enquiries, contact:
-Secretary, MCST Plan No. 3271 – Laguna Park
+*For privacy enquiries:*
+
+Secretary
+
+MCST Plan No. 3271 – Laguna Park
+
 mcst3271.council@gmail.com
 
 ────────────────────────
+
 *CONSENT*
 
-By replying *I AGREE* you confirm that:
-1. you have read and understood this Privacy & Consent Notice;
-2. the information you provide is accurate to the best of your knowledge;
-3. you voluntarily wish to participate in the Community; and
-4. you consent to MCST 3271 collecting, using and disclosing your personal data for the purposes stated above.
+By replying *I AGREE*, you confirm that you have read and understood this notice and consent to MCST 3271 collecting, using and, where reasonably necessary, disclosing your personal data for the purposes above.
 
-Please reply *I AGREE* to continue.
-If you do not agree, please do not proceed.`;
+Please reply: *I AGREE* to continue.`;
+
 
 // ── Admin notification ───────────────────────────────────────────────────────
 
