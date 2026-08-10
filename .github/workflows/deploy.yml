@@ -21,4 +21,8 @@ jobs:
             git pull origin main
             npm install
             npm run build
-            pm2 restart edwin
+            pm2 stop edwin || true
+            pm2 delete edwin || true
+            pm2 start npm --name edwin --cwd /root/edwin -- start
+            pm2 save
+            echo "✅ Deployment complete!"
