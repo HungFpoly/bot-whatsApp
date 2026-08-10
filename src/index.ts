@@ -173,7 +173,7 @@ Thank you for helping us maintain a respectful and properly organised community.
       console.log(`[DEBUG] Private chat detected: ${remoteJid}`);
       if (text) {
         console.log(`[DEBUG] Calling handleOnboardingMessage with text: "${text}"`);
-        await handleOnboardingMessage(sock, remoteJid, text);
+        await handleOnboardingMessage(sock, remoteJid, text, msg.key);
       }
       return;
     }

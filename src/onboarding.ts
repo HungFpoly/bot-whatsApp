@@ -182,31 +182,41 @@ export function initContactMapping(sock: WASocket): void {
 export async function handleOnboardingMessage(
   sock: WASocket,
   senderJid: string,
-  text: string
+  text: string,
+  messageKey?: any // WAMessageKey optional for remoteJidAlt
 ): Promise<void> {
-  // Extract phone number from JID using contact map or LIDMappingStore
+  // Extract phone number: prefer remoteJidAlt (PN format), fallback to senderJid parsing
   let mobile = senderJid.replace("@s.whatsapp.net", "").replace("@lid", "");
   
-  // If LID format, try to get real phone number
-  if (senderJid.includes("@lid")) {
+  // If we have messageKey with remoteJidAlt, use that (actual phone number)
+  if (messageKey?.remoteJidAlt) {
+    const altJid = messageKey.remoteJidAlt.replace("@s.whatsapp.net", "").replace("@lid", "");
+    if (altJid && altJid.match(/^\d+$/)) {
+      mobile = altJid;
+      console.log(`[ONBOARDING] Got phone from remoteJidAlt: ${mobile}`);
+    }
+  } else if (senderJid.includes("@lid")) {
+    // Fallback: try LIDMappingStore for LID format
     const lid = senderJid.replace("@lid", "");
     
-    // Try contact map first
     if (contactMap.has(lid)) {
       mobile = contactMap.get(lid)!;
       console.log(`[ONBOARDING] Got phone from contact map: ${mobile}`);
     } else {
-      // Try LIDMappingStore
       try {
         const phoneNumber = await sock.signalRepository.lidMapping.getPNForLID(lid);
         if (phoneNumber) {
           mobile = phoneNumber;
-          contactMap.set(lid, phoneNumber); // Cache it
+          contactMap.set(lid, phoneNumber);
           console.log(`[ONBOARDING] Got phone from LIDMapping: ${mobile}`);
         }
       } catch (err) {
         console.log(`[ONBOARDING] Could not convert LID: ${err}`);
       }
+    }
+    
+    if (mobile === lid) {
+      console.log(`[ONBOARDING] WARNING: Could not convert LID ${lid} to phone number.`);
     }
   }
 
@@ -254,30 +264,21 @@ export async function handleOnboardingMessage(
     // Parse form: extract Name, Unit Number, Status, Email
     const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
     
-    console.log(`[ONBOARDING] Form parsing - raw lines: ${JSON.stringify(lines)}`);
-    
     let name = "", unit = "", status = "", email = "";
     
     for (const line of lines) {
       const lowerLine = line.toLowerCase();
-      console.log(`[ONBOARDING] Processing line: "${line}" (lower: "${lowerLine}")`);
       
       if (lowerLine.startsWith("name:")) {
         name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
-        console.log(`[ONBOARDING] Extracted name: "${name}"`);
       } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
         unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
-        console.log(`[ONBOARDING] Extracted unit: "${unit}"`);
       } else if (lowerLine.startsWith("status:")) {
         status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
-        console.log(`[ONBOARDING] Extracted status: "${status}"`);
       } else if (lowerLine.startsWith("email:")) {
         email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
-        console.log(`[ONBOARDING] Extracted email: "${email}"`);
       }
     }
-
-    console.log(`[ONBOARDING] Final parsed: name="${name}", unit="${unit}", status="${status}", email="${email}"`);
 
     // Validate required fields
     if (!name || name.length < 2) {
@@ -295,7 +296,6 @@ export async function handleOnboardingMessage(
     }
 
     if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
-      console.log(`[ONBOARDING] Invalid status "${status}", allowed: ["SP", "RESIDENT", "TENANT"]`);
       await sock.sendMessage(senderJid, {
         text: "❌ Status must be one of: SP, Resident, or Tenant. Please fill the form again.",
       });
