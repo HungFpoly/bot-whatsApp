@@ -33,6 +33,10 @@ interface OnboardingSession {
 
 const contactMap = new Map<string, string>(); // LID → Phone Number
 
+// ── In-memory session store ──────────────────────────────────────────────────
+
+const sessions = new Map<string, OnboardingSession>();
+
 function buildContactMap(sock: WASocket): void {
   try {
     sock.ev.on("contacts.upsert", (contacts) => {
