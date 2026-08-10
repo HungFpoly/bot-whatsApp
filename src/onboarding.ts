@@ -1,8 +1,5 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import { google } from "googleapis";
-import * as XLSX from "xlsx";
-import * as fs from "fs";
-import * as path from "path";
 import { config } from "./config";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -25,60 +22,12 @@ interface OnboardingSession {
   unitValidationAttempts?: number;
 }
 
-// ── Unit validation cache ────────────────────────────────────────────────────
+// ── No longer needed - unit validation removed ────────────────────────────────
 
-let validUnitsCache: Set<string> | null = null;
-
-async function loadValidUnits(): Promise<Set<string>> {
-  if (validUnitsCache) return validUnitsCache;
-
-  try {
-    const excelPath = path.resolve("Laguna Park Unit Numbers.xlsx");
-    
-    if (!fs.existsSync(excelPath)) {
-      console.error("[ONBOARDING] Excel file not found:", excelPath);
-      return new Set();
-    }
-
-    const workbook = XLSX.readFile(excelPath);
-    const firstSheet = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheet];
-    
-    // Get all values from the sheet as array of arrays
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      defval: "",
-    }) as unknown[][];
-
-    const units = new Set<string>();
-
-    // Extract unit numbers from all cells
-    rows.forEach((row) => {
-      if (Array.isArray(row)) {
-        row.forEach((cell) => {
-          if (cell !== null && cell !== undefined && cell !== "") {
-            const unitNumber = String(cell).trim().toUpperCase();
-            if (unitNumber && unitNumber !== "UNIT") {
-              units.add(unitNumber);
-            }
-          }
-        });
-      }
-    });
-
-    validUnitsCache = units;
-    console.log(`[ONBOARDING] Loaded ${units.size} valid units from Excel`);
-    return units;
-  } catch (error) {
-    console.error("[ONBOARDING] Error loading units from Excel:", error);
-    return new Set();
-  }
-}
-
-function isValidUnit(unit: string): boolean {
-  if (!validUnitsCache) return false;
-  return validUnitsCache.has(unit.toUpperCase());
-}
+// let validUnitsCache: Set<string> | null = null;
+//
+// async function loadValidUnits(): Promise<Set<string>> { ... }
+// function isValidUnit(unit: string): boolean { ... }
 
 // ── In-memory session store ──────────────────────────────────────────────────
 
@@ -163,7 +112,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
     // Check if header exists (if sheet is empty, add header first)
     const getResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: config.google.sheetId,
-      range: "Sheet1!A1:A1",
+      range: "Members!A1:A1",
     });
 
     if (!getResponse.data.values || getResponse.data.values.length === 0) {
@@ -180,7 +129,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
       ];
       await sheets.spreadsheets.values.append({
         spreadsheetId: config.google.sheetId,
-        range: "Sheet1!A:H",
+        range: "Members!A:H",
         valueInputOption: "USER_ENTERED",
         requestBody: { values: [header] },
       });
@@ -212,7 +161,7 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: config.google.sheetId,
-      range: "Sheet1!A:H",
+      range: "Members!A:H",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     });
@@ -245,11 +194,6 @@ export async function handleOnboardingMessage(
 ): Promise<void> {
   const mobile = senderJid.replace("@s.whatsapp.net", "");
   let normalised = text.trim().toLowerCase().replace(/^\*|\*$/g, '').trim();
-
-  // Load valid units on first use
-  if (!validUnitsCache) {
-    await loadValidUnits();
-  }
 
   let session = sessions.get(senderJid);
 
