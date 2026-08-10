@@ -153,22 +153,21 @@ export async function handleOnboardingMessage(
   senderJid: string,
   text: string
 ): Promise<void> {
-  // Extract phone number from JID or contact metadata
+  // Extract phone number from JID using LIDMappingStore
   let mobile = senderJid.replace("@s.whatsapp.net", "").replace("@lid", "");
   
-  // Try to get actual phone number from contact metadata
-  try {
-    const contacts = await sock.contacts.get(senderJid);
-    if (contacts && contacts.id) {
-      // contacts.id format might contain phone number
-      const contactId = contacts.id.replace("@s.whatsapp.net", "").replace("@lid", "");
-      if (contactId && contactId.match(/^\d+$/)) {
-        mobile = contactId;
-        console.log(`[ONBOARDING] Got phone from contact metadata: ${mobile}`);
+  // If LID format, try to get real phone number from mapping
+  if (senderJid.includes("@lid")) {
+    try {
+      const lid = senderJid.replace("@lid", "");
+      const phoneNumber = await sock.signalRepository.lidMapping.getPNForLID(lid);
+      if (phoneNumber) {
+        mobile = phoneNumber;
+        console.log(`[ONBOARDING] Converted LID to phone: ${mobile}`);
       }
+    } catch (err) {
+      console.log(`[ONBOARDING] Could not convert LID to phone: ${err}`);
     }
-  } catch (err) {
-    console.log(`[ONBOARDING] Could not fetch contact metadata: ${err}`);
   }
 
   let normalised = text.trim().toLowerCase().replace(/^\*|\*$/g, '').trim();
