@@ -121,10 +121,12 @@ Thank you for helping us maintain a respectful and properly organised community.
 
   // Incoming messages
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    console.log(`[DEBUG] messages.upsert event: type=${type}, count=${messages.length}`);
     if (type !== "notify") return;
 
     for (const msg of messages) {
       try {
+        console.log(`[DEBUG] Processing message from ${msg.key.remoteJid}`);
         await handleMessage(sock, msg);
       } catch (error) {
         console.error("[BOT] Error handling message:", error);
@@ -143,9 +145,13 @@ Thank you for helping us maintain a respectful and properly organised community.
     const text = getMessageText(msg);
     const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
 
+    console.log(`[DEBUG] Message: fromMe=${msg.key.fromMe}, remoteJid=${remoteJid}, text="${text}", isMedia=${isMedia}`);
+
     // ── Private chat → onboarding flow ──────────────────────────────────────
     if (!remoteJid.endsWith("@g.us")) {
+      console.log(`[DEBUG] Private chat detected: ${remoteJid}`);
       if (text) {
+        console.log(`[DEBUG] Calling handleOnboardingMessage with text: "${text}"`);
         await handleOnboardingMessage(sock, remoteJid, text);
       }
       return;
