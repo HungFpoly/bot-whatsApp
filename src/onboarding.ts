@@ -125,17 +125,17 @@ async function appendToSheet(session: OnboardingSession): Promise<void> {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Format timestamp: DD/MM/YYYY HH:MM:SS (Vietnam timezone UTC+7)
+    // Format timestamp: DD/MM/YYYY HH:MM:SS (Singapore timezone UTC+8)
     const formatTimestamp = (isoString: string): string => {
       const date = new Date(isoString);
-      // Convert to Vietnam time (UTC+7)
-      const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000) - (date.getTimezoneOffset() * 60 * 1000));
-      const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
-      const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
-      const year = vietnamTime.getUTCFullYear();
-      const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
-      const minutes = String(vietnamTime.getUTCMinutes()).padStart(2, "0");
-      const seconds = String(vietnamTime.getUTCSeconds()).padStart(2, "0");
+      // Convert to Singapore time (UTC+8)
+      const singaporeTime = new Date(date.getTime() + (8 * 60 * 60 * 1000) - (date.getTimezoneOffset() * 60 * 1000));
+      const day = String(singaporeTime.getUTCDate()).padStart(2, "0");
+      const month = String(singaporeTime.getUTCMonth() + 1).padStart(2, "0");
+      const year = singaporeTime.getUTCFullYear();
+      const hours = String(singaporeTime.getUTCHours()).padStart(2, "0");
+      const minutes = String(singaporeTime.getUTCMinutes()).padStart(2, "0");
+      const seconds = String(singaporeTime.getUTCSeconds()).padStart(2, "0");
       return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     };
 
