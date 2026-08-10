@@ -4,7 +4,7 @@
   "description": "WhatsApp group chat moderation bot - auto delete toxic messages",
   "main": "dist/index.js",
   "scripts": {
-    "build": "node --max-old-space-size=2048 ./node_modules/.bin/tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts"
   },
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "esbuild": "^0.28.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"
   }
