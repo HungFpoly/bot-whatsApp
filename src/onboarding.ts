@@ -97,15 +97,10 @@ This Community is operated by MCST Plan No. 3271 – Laguna Park.
 To register you, we may collect your WhatsApp number, name, unit number, declared status (SP / resident / tenant), optional email, and consent/verification records.
 
 *Your information will be used to:*
-
 • verify and administer your Community membership
-
 • provide estate announcements and updates
-
 • share information on activities and events
-
 • conduct polls, surveys and resident engagement
-
 • facilitate estate-related communications
 
 Your details may be checked against the strata roll, MCST records and/or Management Office records.
