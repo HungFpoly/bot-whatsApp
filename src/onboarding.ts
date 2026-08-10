@@ -168,8 +168,7 @@ async function getAndRevokeInviteLink(
 ): Promise<string> {
   const code = await sock.groupInviteCode(groupJid);
   const link = `https://chat.whatsapp.com/${code}`;
-  // Revoke immediately so the link is single-use in effect
-  await sock.groupRevokeInvite(groupJid);
+  // Keep link active - don't revoke immediately
   return link;
 }
 
