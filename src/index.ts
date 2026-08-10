@@ -14,11 +14,14 @@ import { handleOnboardingMessage } from "./onboarding";
 const logger = pino({ level: "warn" });
 
 async function startBot() {
+  console.log("[DEBUG] === startBot() called ===");
   const { state, saveCreds } = await useMultiFileAuthState(
     config.whatsapp.sessionPath
   );
+  console.log("[DEBUG] Auth state loaded");
 
   const { version } = await fetchLatestBaileysVersion();
+  console.log("[DEBUG] Baileys version fetched:", version);
 
   const sock = makeWASocket({
     auth: state,
