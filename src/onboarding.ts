@@ -496,38 +496,15 @@ Respond ONLY in JSON:
       return;
     }
 
-    // AI Unit Validation
-    const validUnits = await loadValidUnits();
-    const validation = await validateUnitWithAI(unit, validUnits);
-
-    console.log(
-      `[ONBOARDING] Unit validation for "${unit}": confidence=${validation.confidence}, matched="${validation.matchedUnit}"`
-    );
-
-    // Decision logic
-    if (validation.confidence >= 0.8) {
-      // ✅ High confidence (≥80%) → Auto-approve
-      console.log(`[ONBOARDING] ✅ Unit "${unit}" validated (confidence: ${validation.confidence})`);
-      unit = validation.matchedUnit; // Use normalized unit from AI
-    } else if (validation.confidence < 0.8) {
-      // ⚠️ Low confidence (<80%) → Notify admin but still proceed
-      console.log(
-        `[ONBOARDING] ⚠️ Low confidence unit "${unit}" (confidence: ${validation.confidence}). Notifying admin.`
-      );
-      await notifyAdminInvalidUnit(sock, {
-        mobileNumber: mobile,
-        name: name,
-        unitAttempt: unit,
-      });
-      // Continue with user's input (admin will verify manually later)
-    }
-
-    // Save data
+    // Save user's unit input as-is (no AI validation)
+    // Admin will verify manually later
     session.name = name;
     session.unit = unit;
     session.status = status;
     session.email = email || "";
     session.step = "complete";
+
+    console.log(`[ONBOARDING] Accepted unit "${unit}" (admin will verify later)`);
 
     // Complete registration
     await completeOnboarding(sock, senderJid, session);
