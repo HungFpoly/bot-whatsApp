@@ -1,6 +1,14 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import { google } from "googleapis";
 import { config } from "./config";
+import * as XLSX from "xlsx";
+import * as path from "path";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: config.openai.apiKey,
+  baseURL: config.openai.baseUrl,
+});
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,12 +31,110 @@ interface OnboardingSession {
   inviteLinkTimestamp?: string; // Timestamp when invite link was generated (expires after 2 days)
 }
 
-// ── No longer needed - unit validation removed ────────────────────────────────
+// ── Load valid units from Excel ───────────────────────────────────────────────
 
-// let validUnitsCache: Set<string> | null = null;
-//
-// async function loadValidUnits(): Promise<Set<string>> { ... }
-// function isValidUnit(unit: string): boolean { ... }
+let validUnitsCache: string[] | null = null;
+
+async function loadValidUnits(): Promise<string[]> {
+  if (validUnitsCache) return validUnitsCache;
+
+  try {
+    const filePath = path.join(__dirname, "../Laguna Park Unit Numbers.xlsx");
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json<{ Unit?: string }>(worksheet);
+
+    validUnitsCache = data
+      .map((row) => row.Unit || "")
+      .filter((unit) => unit.trim().length > 0)
+      .map((unit) => unit.trim().toUpperCase());
+
+    console.log(`[ONBOARDING] Loaded ${validUnitsCache.length} valid units from Excel`);
+    return validUnitsCache;
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to load valid units from Excel:", error);
+    return [];
+  }
+}
+
+// ── AI Unit Validation ────────────────────────────────────────────────────────
+
+interface UnitValidationResult {
+  isValid: boolean;
+  matchedUnit: string;
+  confidence: number; // 0.0 to 1.0
+  reason: string;
+}
+
+async function validateUnitWithAI(
+  userInput: string,
+  validUnits: string[]
+): Promise<UnitValidationResult> {
+  try {
+    const prompt = `You are a unit number validation system for Laguna Park condominium.
+
+Valid units list (${validUnits.length} units):
+${validUnits.slice(0, 100).join(", ")}${validUnits.length > 100 ? "..." : ""}
+
+User submitted: "${userInput}"
+
+Task: Find the best matching unit from the valid units list.
+
+Rules:
+- Users may type units in different formats: "19-08", "C19-08", "1908", "C1908", "19 08", etc.
+- Building prefix (A, B, C, D) might be included or omitted
+- Hyphens and spaces might be present or missing
+- Compare the user input with ALL valid units and find the closest match
+- Calculate confidence score (0.0 to 1.0) based on similarity
+
+Respond ONLY in JSON format:
+{
+  "isValid": true/false,
+  "matchedUnit": "exact unit from valid list or empty",
+  "confidence": 0.0 to 1.0,
+  "reason": "brief explanation"
+}
+
+Examples:
+- User: "1908" → might match "C19-08" or "B19-08" (check which exists)
+- User: "C19-08" → exact match if exists
+- User: "Z99-99" → no match (building Z doesn't exist)`;
+
+    const response = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 150,
+    });
+
+    const content = response.choices[0]?.message?.content || "";
+    const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleaned) as UnitValidationResult;
+
+    return {
+      isValid: result.isValid || false,
+      matchedUnit: result.matchedUnit || "",
+      confidence: result.confidence || 0,
+      reason: result.reason || "Unknown",
+    };
+  } catch (error) {
+    console.error("[ONBOARDING] AI unit validation failed:", error);
+    return {
+      isValid: false,
+      matchedUnit: "",
+      confidence: 0,
+      reason: "Error during validation",
+    };
+  }
+}
+
+// ── No longer needed - unit validation removed ────────────────────────────────
 
 // ── Contact mapping cache (LID → Phone Number) ──────────────────────────────
 
@@ -100,16 +206,16 @@ async function notifyAdminInvalidUnit(
   try {
     const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
     const message =
-      `⚠️ *ONBOARDING ALERT*\n\n` +
-      `Resident entered invalid unit number:\n\n` +
+      `⚠️ *ONBOARDING ALERT - Low Confidence Unit*\n\n` +
+      `AI validation confidence < 80%\n\n` +
       `*Mobile:* ${resident.mobileNumber}\n` +
       `*Name:* ${resident.name}\n` +
       `*Unit Entered:* ${resident.unitAttempt}\n\n` +
-      `Please verify and follow up if needed.`;
+      `Please verify this unit number manually.`;
 
     await sock.sendMessage(adminJid, { text: message });
     console.log(
-      `[ONBOARDING] Admin notified about invalid unit from ${resident.mobileNumber}`
+      `[ONBOARDING] Admin notified about low-confidence unit from ${resident.mobileNumber}`
     );
   } catch (error) {
     console.error("[ONBOARDING] Failed to notify admin:", error);
@@ -320,8 +426,31 @@ export async function handleOnboardingMessage(
       return;
     }
 
-    // No strict unit validation — just accept any format (19-08, C19-08, etc)
-    // Admin will verify manually after registration
+    // AI Unit Validation
+    const validUnits = await loadValidUnits();
+    const validation = await validateUnitWithAI(unit, validUnits);
+
+    console.log(
+      `[ONBOARDING] Unit validation for "${unit}": confidence=${validation.confidence}, matched="${validation.matchedUnit}"`
+    );
+
+    // Decision logic
+    if (validation.confidence >= 0.8) {
+      // ✅ High confidence (≥80%) → Auto-approve
+      console.log(`[ONBOARDING] ✅ Unit "${unit}" validated (confidence: ${validation.confidence})`);
+      unit = validation.matchedUnit; // Use normalized unit from AI
+    } else if (validation.confidence < 0.8) {
+      // ⚠️ Low confidence (<80%) → Notify admin but still proceed
+      console.log(
+        `[ONBOARDING] ⚠️ Low confidence unit "${unit}" (confidence: ${validation.confidence}). Notifying admin.`
+      );
+      await notifyAdminInvalidUnit(sock, {
+        mobileNumber: mobile,
+        name: name,
+        unitAttempt: unit,
+      });
+      // Continue with user's input (admin will verify manually later)
+    }
 
     // Save data
     session.name = name;

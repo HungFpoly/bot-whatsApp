@@ -218,10 +218,33 @@ export async function moderateMessage(
     });
   }
 
-  // --- Image / Video moderation ---
+  // --- Image / Video moderation (with caption check) ---
   const isImage = !!m.imageMessage;
   const isVideo = !!m.videoMessage;
+  
   if (isImage || isVideo) {
+    // First, check caption text (if exists)
+    const caption = getMessageText(msg);
+    if (caption && caption.length >= config.bot.minMessageLength) {
+      // Check bad words in caption
+      if (containsBadWords(caption)) {
+        console.log(`[MOD] Bad word in image/video caption: "${caption.substring(0, 50)}..."`);
+        await deleteMessage(sock, groupJid, msg, "Contains prohibited words");
+        return;
+      }
+      
+      // AI analysis for caption text
+      const textResult = await analyzeMessage(caption);
+      if (textResult.isToxic && textResult.confidence >= 0.7) {
+        console.log(
+          `[MOD] AI flagged caption (${textResult.confidence}): "${caption.substring(0, 50)}..." - Reason: ${textResult.reason}`
+        );
+        await deleteMessage(sock, groupJid, msg, textResult.reason);
+        return;
+      }
+    }
+    
+    // Then, analyze the image/video itself
     await moderateMedia(sock, groupJid, msg, isImage ? "image" : "video");
     return;
   }
@@ -258,7 +281,7 @@ export async function moderateMessage(
     return;
   }
 
-  // Step 2: AI analysis for context-based toxicity
+  // Step 2: AI analysis for context-based toxicity AND religious content
   const result = await analyzeMessage(text);
 
   if (result.isToxic && result.confidence >= 0.7) {
@@ -317,13 +340,20 @@ async function deleteMessageByKey(
   reason: string
 ): Promise<void> {
   try {
-    // Baileys: delete any message in a group as admin by sending a
-    // revoke protocol message referencing the original message key.
+    // For LID groups, use the real phone number (participantAlt) for deletion
+    // participantAlt is not in the official type but exists at runtime
+    const deleteKey = {
+      remoteJid: key.remoteJid,
+      fromMe: key.fromMe,
+      id: key.id,
+      participant: (key as any).participantAlt || key.participant,
+    };
+    
     await sock.sendMessage(groupJid, {
-      delete: key,
+      delete: deleteKey,
     });
 
-    console.log(`[MOD] ✅ Deleted message. Reason: ${reason}`);
+    console.log(`[MOD] ✅ Message deleted. Reason: ${reason}`);
 
     if (config.bot.violationAction === "delete_and_warn") {
       await sock.sendMessage(groupJid, {
@@ -331,6 +361,6 @@ async function deleteMessageByKey(
       });
     }
   } catch (error) {
-    console.error("[MOD] Failed to delete message:", error);
+    console.error("[MOD] ❌ Failed to delete message:", error);
   }
 }

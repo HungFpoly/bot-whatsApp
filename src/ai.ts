@@ -20,7 +20,15 @@ Rules:
 2. No graphic violence or gore
 3. No hate symbols, racist or discriminatory imagery
 4. No scam/phishing content (fake QR codes, fake payment screens, suspicious links shown in image)
-5. No commercial advertising or promotional flyers
+5. No commercial advertising or promotional flyers (property agents, insurance, loans, renovation services)
+6. No religious content (church posters, mass invitations, religious ceremonies, bible verses, religious symbols like crosses/crescents)
+
+EXCEPTIONS - These are ALLOWED:
+- News screenshots about property, real estate, neighborhood developments
+- En bloc (collective sale) news and information - ALWAYS ALLOWED
+- Community announcements and facility-related information
+- Photos of the building, facilities, common areas, surroundings
+- Legitimate news articles from reputable sources (Straits Times, CNA, Business Times, etc.)
 
 Respond ONLY in JSON format:
 {
@@ -29,7 +37,9 @@ Respond ONLY in JSON format:
   "confidence": 0.0 to 1.0
 }
 
-Be strict but fair. Normal photos (food, facilities, documents, selfies) are OK.
+Be strict but fair. Normal photos (food, facilities, documents, selfies, news screenshots, en bloc information) are OK.
+En bloc sale information is important for residents and should NEVER be flagged.
+Religious content should be flagged with reason "Religious content not allowed in this group".
 Only flag images that clearly violate one of the rules above.`;
 
 export async function analyzeImage(
@@ -104,6 +114,13 @@ Rules:
 8. No threats or encouragement of property damage, vandalism, or physical harm
 9. No sexual, pornographic, or graphic violent content
 10. No commercial advertising, solicitation, or repeated promotional messages
+11. No religious content (church/mosque/temple invitations, religious ceremonies, prayers, bible/quran verses, religious links like youtube.be/church videos)
+
+EXCEPTIONS - These are ALLOWED:
+- News articles about property, real estate, neighborhood developments (e.g., Straits Times, CNA, Business Times links)
+- En bloc (collective sale) news and discussions - ALWAYS ALLOWED, very important for residents
+- Community announcements and local area updates
+- Sharing information relevant to residents (nearby construction, facilities, etc.)
 
 Respond ONLY in JSON format:
 {
@@ -113,6 +130,9 @@ Respond ONLY in JSON format:
 }
 
 Be strict but fair. Normal complaints about facilities or services are OK.
+News articles, en bloc information and community information sharing are OK.
+En bloc discussions are ALWAYS allowed as they directly affect residents.
+Religious content should be flagged with reason "Religious content not allowed in this group".
 Only flag messages that clearly violate one of the rules above.`,
         },
         {

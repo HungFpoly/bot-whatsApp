@@ -14,14 +14,11 @@ import { handleOnboardingMessage, initContactMapping } from "./onboarding";
 const logger = pino({ level: "warn" });
 
 async function startBot() {
-  console.log("[DEBUG] === startBot() called ===");
   const { state, saveCreds } = await useMultiFileAuthState(
     config.whatsapp.sessionPath
   );
-  console.log("[DEBUG] Auth state loaded");
 
   const { version } = await fetchLatestBaileysVersion();
-  console.log("[DEBUG] Baileys version fetched:", version);
 
   const sock = makeWASocket({
     auth: state,
@@ -30,9 +27,6 @@ async function startBot() {
     printQRInTerminal: false,
   });
 
-  console.log("[DEBUG] Socket created, waiting for events...");
-
-  // Initialize contact mapping for phone number extraction
   initContactMapping(sock);
 
   let pairingRequested = false;
@@ -127,25 +121,11 @@ Thank you for helping us maintain a respectful and properly organised community.
   // Persist credentials whenever they update
   sock.ev.on("creds.update", saveCreds);
 
-  // Debug: log all event registrations
-  console.log("[DEBUG] Registering sock.ev.on listeners...");
-
-  // Incoming messages
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    console.log(`[DEBUG] ⭐ messages.upsert EVENT FIRED: type=${type}, count=${messages.length}`);
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      console.log(`  [${i}] remoteJid=${msg.key.remoteJid}, fromMe=${msg.key.fromMe}, hasMessage=${!!msg.message}`);
-    }
-    
-    if (type !== "notify") {
-      console.log(`[DEBUG] Skipping type=${type}, only handling 'notify'`);
-      return;
-    }
+    if (type !== "notify") return;
 
     for (const msg of messages) {
       try {
-        console.log(`[DEBUG] Processing message from ${msg.key.remoteJid}`);
         await handleMessage(sock, msg);
       } catch (error) {
         console.error("[BOT] Error handling message:", error);
@@ -153,45 +133,28 @@ Thank you for helping us maintain a respectful and properly organised community.
     }
   });
 
-  console.log("[DEBUG] Event listeners registered successfully");
-
   async function handleMessage(sock: ReturnType<typeof makeWASocket>, msg: WAMessage) {
-    // Ignore messages without content
     if (!msg.message) return;
-
-    // Ignore messages sent by the bot itself
     if (msg.key.fromMe) return;
 
     const remoteJid = msg.key.remoteJid || "";
     const text = getMessageText(msg);
     const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
 
-    console.log(`[DEBUG] Message: fromMe=${msg.key.fromMe}, remoteJid=${remoteJid}, text="${text}", isMedia=${isMedia}`);
-
     // ── Private chat → onboarding flow ──────────────────────────────────────
     if (!remoteJid.endsWith("@g.us")) {
-      console.log(`[DEBUG] Private chat detected: ${remoteJid}`);
       if (text) {
-        console.log(`[DEBUG] Calling handleOnboardingMessage with text: "${text}"`);
         await handleOnboardingMessage(sock, remoteJid, text, msg.key);
       }
       return;
     }
 
     // ── Group chat → moderation ──────────────────────────────────────────────
-    // If a specific group is configured, only moderate that group
     if (config.whatsapp.groupId && remoteJid !== config.whatsapp.groupId) {
-      console.log(`[DEBUG] Ignoring message from different group: ${remoteJid}`);
       return;
     }
 
     if (!text && !isMedia) return;
-
-    if (text) {
-      console.log(`[DEBUG] Group message in ${remoteJid}: "${text}"`);
-    } else {
-      console.log(`[DEBUG] Group media message in ${remoteJid}: ${msg.message?.imageMessage ? "image" : "video"}`);
-    }
 
     await moderateMessage(sock, remoteJid, msg);
   }
