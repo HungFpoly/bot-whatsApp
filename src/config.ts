@@ -27,7 +27,7 @@ export const config = {
     timezone: process.env.QUIET_HOURS_TIMEZONE || "Asia/Singapore",
     reminderMessage:
       process.env.QUIET_HOURS_MESSAGE ||
-      "🌙 Quiet hours reminder (11pm – 7am): Please be mindful of the time. Thank you for keeping the group peaceful!",
+      "🌝 Quiet hours are from 11 pm to 7 am. Please be mindful when posting during this time. Thank you for your understanding.",
   },
   google: {
     sheetId: process.env.GOOGLE_SHEET_ID || "",
