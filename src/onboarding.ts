@@ -502,7 +502,7 @@ async function completeOnboarding(
   }
 
   // Send confirmation + invite
-  await sock.sendMessage(senderJid, {
+  const confirmationMessage = await sock.sendMessage(senderJid, {
     text:
       `✅ *Registration received*\n\n` +
       `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
@@ -517,6 +517,46 @@ async function completeOnboarding(
     console.log(`[ONBOARDING] Link expires at: ${expiresAt}`);
   }
 
-  // Clean up session
+  // Wait a moment for user to see the message
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // Save contact to bot's address book by sending vCard to ourselves
+  try {
+    const botJid = sock.user?.id || '';
+    if (botJid) {
+      const vcard = 
+        'BEGIN:VCARD\n' +
+        'VERSION:3.0\n' +
+        `FN:${session.name} - ${session.unit}\n` +
+        `TEL;type=CELL;type=VOICE;waid=${session.mobileNumber}:+${session.mobileNumber}\n` +
+        'END:VCARD';
+      
+      await sock.sendMessage(botJid, {
+        contacts: {
+          displayName: `${session.name} - ${session.unit}`,
+          contacts: [{ vcard }]
+        }
+      });
+      console.log(`[ONBOARDING] ✅ Contact saved to bot: ${session.name} - ${session.unit}`);
+    }
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to save contact:", error);
+  }
+
+  // Wait a moment before archiving
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // Archive conversation from bot's side for privacy
+  try {
+    await sock.chatModify(
+      { archive: true, lastMessages: [] },
+      senderJid
+    );
+    console.log(`[ONBOARDING] ✅ Conversation archived from bot side: ${session.mobileNumber}`);
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to archive conversation:", error);
+  }
+
+  // Clean up session from memory
   sessions.delete(senderJid);
 }
