@@ -496,15 +496,27 @@ Respond ONLY in JSON:
       return;
     }
 
-    // Save user's unit input as-is (no AI validation)
-    // Admin will verify manually later
+    // Basic unit format validation (not strict matching with Excel)
+    // Accept reasonable formats: B06-06, 06-06, 0606, 50B-06-06, etc.
+    // Reject garbage: e8r68rẻwe8rưe9r6ew9r
+    const unitPattern = /^[A-Z0-9]{2,10}[-\s]?[0-9]{2}[-\s]?[0-9]{2}$|^[A-Z]?[0-9]{4,6}$/i;
+    
+    if (!unitPattern.test(unit)) {
+      await sock.sendMessage(senderJid, {
+        text: "❌ Unit Number format is invalid. Please enter a valid unit (e.g., 06-06, B06-06, 50B-06-06, or 0606).",
+      });
+      return;
+    }
+
+    // Save user's unit input as-is
+    // Admin will verify exact match later
     session.name = name;
     session.unit = unit;
     session.status = status;
     session.email = email || "";
     session.step = "complete";
 
-    console.log(`[ONBOARDING] Accepted unit "${unit}" (admin will verify later)`);
+    console.log(`[ONBOARDING] Accepted unit "${unit}" (format validated, admin will verify exact match later)`);
 
     // Complete registration
     await completeOnboarding(sock, senderJid, session);
