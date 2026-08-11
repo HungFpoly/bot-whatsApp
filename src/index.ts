@@ -92,7 +92,7 @@ async function startBot() {
     for (const participant of participants) {
       try {
         await sock.sendMessage(id, {
-          text: `Welcome to the Official Laguna Park WhatsApp Community Chatgroup. 🏡
+          text: `Welcome to the Laguna Park WhatsApp Community Chatgroup. 🏡
 
 By remaining in this group, you consent to your mobile number being visible to other members. Please do not share or harvest contact details from this group without explicit consent, in compliance with the PDPA.
 
