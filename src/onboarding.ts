@@ -616,18 +616,18 @@ async function completeOnboarding(
     console.error("[ONBOARDING] Failed to save contact:", error);
   }
 
-  // Wait a moment before archiving
+  // Wait a moment before deleting
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  // Archive conversation from bot's side for privacy
+  // Delete conversation from bot's side for privacy
   try {
     await sock.chatModify(
-      { archive: true, lastMessages: [] },
+      { delete: true, lastMessages: [] },
       senderJid
     );
-    console.log(`[ONBOARDING] ✅ Conversation archived from bot side: ${session.mobileNumber}`);
+    console.log(`[ONBOARDING] ✅ Conversation deleted from bot side: ${session.mobileNumber}`);
   } catch (error) {
-    console.error("[ONBOARDING] Failed to archive conversation:", error);
+    console.error("[ONBOARDING] Failed to delete conversation:", error);
   }
 
   // Clean up session from memory
