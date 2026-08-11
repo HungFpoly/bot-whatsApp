@@ -72,34 +72,48 @@ async function validateUnitWithAI(
   validUnits: string[]
 ): Promise<UnitValidationResult> {
   try {
-    const prompt = `You are a unit number validation system for Laguna Park condominium.
+    const prompt = `You are a unit number validator for Laguna Park condominium.
 
-Valid units list (${validUnits.length} units):
-${validUnits.slice(0, 100).join(", ")}${validUnits.length > 100 ? "..." : ""}
+Valid units from Excel (${validUnits.length} units):
+${validUnits.slice(0, 150).join(", ")}${validUnits.length > 150 ? "..." : ""}
 
 User submitted: "${userInput}"
 
-Task: Find the best matching unit from the valid units list.
+Task: Find the MOST SIMILAR unit from the valid list using STRING COMPARISON.
 
-Rules:
-- Users may type units in different formats: "19-08", "C19-08", "1908", "C1908", "19 08", etc.
-- Building prefix (A, B, C, D) might be included or omitted
-- Hyphens and spaces might be present or missing
-- Compare the user input with ALL valid units and find the closest match
-- Calculate confidence score (0.0 to 1.0) based on similarity
+RULES - String Similarity Scoring:
+1. Exact match → confidence 1.0
+2. User input is substring of valid unit → confidence 0.9
+   Example: "19-08" is in "50A-19-08" → 0.9
+3. Valid unit is substring of user input → confidence 0.85
+   Example: "50A-19-08" in "50A-19-08-A" → 0.85
+4. Same digits, different format → confidence 0.8
+   Example: "1908" vs "19-08" → 0.8
+5. Partial digit match → confidence 0.5-0.7
+   Example: "19-07" vs "19-08" → 0.6
+6. No similarity → confidence 0.0
+   Example: "e8r68rẻwe8r" vs "50A-19-08" → 0.0
 
-Respond ONLY in JSON format:
+IMPORTANT:
+- Extract digits from both strings and compare
+- "19-08" should match "50A-19-08" with confidence 0.9+ (the "19-08" part exists)
+- Reject random text like "e8r68rẻwe8r", "hello world" → confidence 0.0
+- Building prefix (50A, 50B, 51A, etc.) is optional in user input
+
+Respond ONLY in JSON:
 {
   "isValid": true/false,
-  "matchedUnit": "exact unit from valid list or empty",
+  "matchedUnit": "best match from valid list or empty",
   "confidence": 0.0 to 1.0,
-  "reason": "brief explanation"
+  "reason": "brief explanation of similarity"
 }
 
 Examples:
-- User: "1908" → might match "C19-08" or "B19-08" (check which exists)
-- User: "C19-08" → exact match if exists
-- User: "Z99-99" → no match (building Z doesn't exist)`;
+Input: "19-08" → Match "50A-19-08" → confidence 0.9, reason "Floor-unit digits match"
+Input: "50A-19-08" → Match "50A-19-08" → confidence 1.0, reason "Exact match"
+Input: "1908" → Match "50A-19-08" → confidence 0.85, reason "Same digits, format variation"
+Input: "e8r68rẻwe8r" → No match → confidence 0.0, reason "No valid unit contains these characters"
+Input: "hello" → No match → confidence 0.0, reason "Text does not resemble any unit number"`;
 
     const response = await openai.chat.completions.create({
       model: config.openai.model,
@@ -110,7 +124,7 @@ Examples:
         },
       ],
       temperature: 0.1,
-      max_tokens: 150,
+      max_tokens: 200,
     });
 
     const content = response.choices[0]?.message?.content || "";
@@ -496,27 +510,41 @@ Respond ONLY in JSON:
       return;
     }
 
-    // Basic unit format validation (not strict matching with Excel)
-    // Accept reasonable formats: B06-06, 06-06, 0606, 50B-06-06, etc.
-    // Reject garbage: e8r68rẻwe8rưe9r6ew9r
-    const unitPattern = /^[A-Z0-9]{2,10}[-\s]?[0-9]{2}[-\s]?[0-9]{2}$|^[A-Z]?[0-9]{4,6}$/i;
+    // AI Unit Validation - compare with Excel list
+    const validUnits = await loadValidUnits();
     
-    if (!unitPattern.test(unit)) {
-      await sock.sendMessage(senderJid, {
-        text: "❌ Unit Number format is invalid. Please enter a valid unit (e.g., 06-06, B06-06, 50B-06-06, or 0606).",
-      });
-      return;
+    if (validUnits.length === 0) {
+      console.log("[ONBOARDING] ⚠️ No valid units loaded, skipping validation");
+    } else {
+      const validation = await validateUnitWithAI(unit, validUnits);
+
+      console.log(
+        `[ONBOARDING] Unit validation for "${unit}": confidence=${validation.confidence}, matched="${validation.matchedUnit}", reason="${validation.reason}"`
+      );
+
+      // Reject if confidence too low (garbage input)
+      if (validation.confidence < 0.5) {
+        await sock.sendMessage(senderJid, {
+          text: `❌ Unit Number "${unit}" does not match any valid unit.\n\nReason: ${validation.reason}\n\nPlease enter a valid unit number and submit the form again.`,
+        });
+        return;
+      }
+
+      // Use matched unit from AI if confidence >= 0.5
+      if (validation.matchedUnit) {
+        unit = validation.matchedUnit;
+        console.log(`[ONBOARDING] ✅ Unit normalized to: ${unit}`);
+      }
     }
 
-    // Save user's unit input as-is
-    // Admin will verify exact match later
+    // Save user's unit
     session.name = name;
     session.unit = unit;
     session.status = status;
     session.email = email || "";
     session.step = "complete";
 
-    console.log(`[ONBOARDING] Accepted unit "${unit}" (format validated, admin will verify exact match later)`);
+    console.log(`[ONBOARDING] Accepted unit "${unit}"`);
 
     // Complete registration
     await completeOnboarding(sock, senderJid, session);
