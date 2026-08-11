@@ -399,22 +399,78 @@ export async function handleOnboardingMessage(
 
   // ── Step 3: Parse form submission ─────────────────────────────────────────
   if (session.step === "awaiting_form") {
-    // Parse form: extract Name, Unit Number, Status, Email
-    const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
-    
+    // Use AI to parse free-form text
     let name = "", unit = "", status = "", email = "";
     
-    for (const line of lines) {
-      const lowerLine = line.toLowerCase();
+    try {
+      const parsePrompt = `You are a form parser for Laguna Park condominium registration.
+
+User submitted this text:
+"""
+${text}
+"""
+
+Extract the following information:
+- Name: Full name (usually 2-4 words)
+- Unit: Unit number (format like "06-06", "C19-08", "1908", etc.)
+- Resident Type: One of "SP", "Resident", or "Tenant" (look for keywords like sp, resident, tenant, owner)
+- Email: Optional email address
+
+Rules:
+- If user submits in format "Name: xxx", extract the value after colon
+- If user submits free-form (3 lines without labels), assume: Line 1 = Name, Line 2 = Unit, Line 3 = Resident Type
+- Names in Asian countries can be 2-4 words
+- Resident Type: normalize to "SP", "RESIDENT", or "TENANT" (case insensitive match)
+- Email is optional
+
+Respond ONLY in JSON:
+{
+  "name": "extracted name or empty",
+  "unit": "extracted unit or empty",
+  "status": "SP/RESIDENT/TENANT or empty",
+  "email": "extracted email or empty"
+}`;
+
+      const parseResponse = await openai.chat.completions.create({
+        model: config.openai.model,
+        messages: [{ role: "user", content: parsePrompt }],
+        temperature: 0.1,
+        max_tokens: 200,
+      });
+
+      const parseContent = parseResponse.choices[0]?.message?.content || "";
+      const parseCleaned = parseContent.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(parseCleaned) as {
+        name: string;
+        unit: string;
+        status: string;
+        email: string;
+      };
+
+      name = parsed.name || "";
+      unit = (parsed.unit || "").toUpperCase();
+      status = (parsed.status || "").toUpperCase();
+      email = parsed.email || "";
+
+      console.log(`[ONBOARDING] AI parsed: name="${name}", unit="${unit}", status="${status}", email="${email}"`);
+    } catch (parseError) {
+      console.error("[ONBOARDING] AI parsing failed, falling back to manual parse:", parseError);
       
-      if (lowerLine.startsWith("name:")) {
-        name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
-      } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
-        unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
-      } else if (lowerLine.startsWith("resident type:") || lowerLine.startsWith("status:")) {
-        status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
-      } else if (lowerLine.startsWith("email:")) {
-        email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
+      // Fallback: manual parsing
+      const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
+      
+      for (const line of lines) {
+        const lowerLine = line.toLowerCase();
+        
+        if (lowerLine.startsWith("name:")) {
+          name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
+        } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
+          unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
+        } else if (lowerLine.startsWith("resident type:") || lowerLine.startsWith("status:")) {
+          status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
+        } else if (lowerLine.startsWith("email:")) {
+          email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
+        }
       }
     }
 
