@@ -167,6 +167,12 @@ function buildContactMap(sock: WASocket): void {
   }
 }
 
+// ── Welcome message (sent automatically when user first messages bot) ──────────
+
+const WELCOME_MESSAGE = `Welcome! 👋
+
+Scan the QR code and send *JOIN* to register for the Laguna Park WhatsApp Community.`;
+
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
 const PRIVACY_NOTICE = `*LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
@@ -358,7 +364,15 @@ export async function handleOnboardingMessage(
       await sock.sendMessage(senderJid, { text: PRIVACY_NOTICE });
       return;
     }
-    // Unknown message, not in onboarding yet — ignore
+    // First message from user → send welcome message
+    if (!session) {
+      sessions.set(senderJid, {
+        step: "awaiting_join",
+        mobileNumber: mobile,
+      });
+      await sock.sendMessage(senderJid, { text: WELCOME_MESSAGE });
+      return;
+    }
     return;
   }
 
@@ -407,7 +421,7 @@ export async function handleOnboardingMessage(
     // Validate required fields
     if (!name || name.length < 2) {
       await sock.sendMessage(senderJid, {
-        text: "❌ Name is required and must be at least 2 characters. Please fill the form again.",
+        text: "❌ Please enter your full name, then submit the form again.",
       });
       return;
     }
