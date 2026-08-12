@@ -323,6 +323,41 @@ export function initContactMapping(sock: WASocket): void {
   buildContactMap(sock);
 }
 
+// ── Check if user is already in community ─────────────────────────────────────
+
+async function isUserInCommunity(
+  sock: WASocket,
+  userJid: string
+): Promise<boolean> {
+  try {
+    if (!config.whatsapp.groupId) {
+      console.log("[ONBOARDING] No group ID configured, skipping member check");
+      return false;
+    }
+
+    const groupMetadata = await sock.groupMetadata(config.whatsapp.groupId);
+    const participants = groupMetadata.participants || [];
+    
+    // Check if user's JID is in the participants list
+    // Need to check both formats: phone@s.whatsapp.net and lid@lid
+    const userPhone = userJid.replace("@s.whatsapp.net", "").replace("@lid", "");
+    
+    const isMember = participants.some((p) => {
+      const participantId = p.id.replace("@s.whatsapp.net", "").replace("@lid", "");
+      return participantId === userPhone || p.id === userJid;
+    });
+
+    if (isMember) {
+      console.log(`[ONBOARDING] User ${userJid} is already in community, skipping welcome message`);
+    }
+
+    return isMember;
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to check if user is in community:", error);
+    return false; // If check fails, allow welcome message to be sent
+  }
+}
+
 export async function handleOnboardingMessage(
   sock: WASocket,
   senderJid: string,
@@ -378,8 +413,16 @@ export async function handleOnboardingMessage(
       await sock.sendMessage(senderJid, { text: PRIVACY_NOTICE });
       return;
     }
-    // First message from user → send welcome message
+    // First message from user → check if already in community
     if (!session) {
+      // Check if user is already in community
+      const alreadyMember = await isUserInCommunity(sock, senderJid);
+      if (alreadyMember) {
+        console.log(`[ONBOARDING] User ${senderJid} already in community, no welcome message sent`);
+        return; // Don't send welcome message, don't create session
+      }
+      
+      // User not in community → send welcome message
       sessions.set(senderJid, {
         step: "awaiting_join",
         mobileNumber: mobile,
