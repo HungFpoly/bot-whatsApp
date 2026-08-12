@@ -185,7 +185,7 @@ function buildContactMap(sock: WASocket): void {
 
 const WELCOME_MESSAGE = `Welcome! 👋
 
-Scan the QR code and send *JOIN* to register for the Laguna Park WhatsApp Community.`;
+Send *JOIN* to register for the Laguna Park WhatsApp Community.`;
 
 // ── Privacy Notice ───────────────────────────────────────────────────────────
 
