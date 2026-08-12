@@ -97,8 +97,9 @@ RULES - String Similarity Scoring:
 IMPORTANT:
 - Extract digits from both strings and compare
 - "19-08" should match "50A-19-08" with confidence 0.9+ (the "19-08" part exists)
+- "C19-08" should match "50C-19-08" with confidence 0.9+ (building letter + floor-unit)
 - Reject random text like "e8r68rẻwe8r", "hello world" → confidence 0.0
-- Building prefix (50A, 50B, 51A, etc.) is optional in user input
+- Building prefix (50A, 50B, 51A, C, D, etc.) is optional in user input
 
 Respond ONLY in JSON:
 {
@@ -110,6 +111,7 @@ Respond ONLY in JSON:
 
 Examples:
 Input: "19-08" → Match "50A-19-08" → confidence 0.9, reason "Floor-unit digits match"
+Input: "C19-08" → Match "50C-19-08" → confidence 0.9, reason "Building and floor-unit match"
 Input: "50A-19-08" → Match "50A-19-08" → confidence 1.0, reason "Exact match"
 Input: "1908" → Match "50A-19-08" → confidence 0.85, reason "Same digits, format variation"
 Input: "e8r68rẻwe8r" → No match → confidence 0.0, reason "No valid unit contains these characters"
@@ -214,6 +216,38 @@ Reply *I AGREE* to continue.`;
 
 
 // ── Admin notification ───────────────────────────────────────────────────────
+
+async function notifyAdminLowConfidenceUnit(
+  sock: WASocket,
+  resident: {
+    mobileNumber: string;
+    name: string;
+    unitAttempt: string;
+    matchedUnit: string;
+    confidence: number;
+    reason: string;
+  }
+): Promise<void> {
+  try {
+    const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
+    const message =
+      `⚠️ *ONBOARDING ALERT - Low Confidence Unit*\n\n` +
+      `AI validation confidence: ${(resident.confidence * 100).toFixed(0)}%\n\n` +
+      `*Mobile:* ${resident.mobileNumber}\n` +
+      `*Name:* ${resident.name}\n` +
+      `*Unit Entered:* ${resident.unitAttempt}\n` +
+      `*AI Matched:* ${resident.matchedUnit}\n` +
+      `*Reason:* ${resident.reason}\n\n` +
+      `Please verify this unit number manually.`;
+
+    await sock.sendMessage(adminJid, { text: message });
+    console.log(
+      `[ONBOARDING] Admin notified about low-confidence unit (${resident.confidence}) from ${resident.mobileNumber}`
+    );
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to notify admin:", error);
+  }
+}
 
 async function notifyAdminInvalidUnit(
   sock: WASocket,
@@ -573,7 +607,20 @@ Respond ONLY in JSON:
         return;
       }
 
-      // Validation passed, but keep original user input for Google Sheet
+      // If confidence is between 0.5 and 0.8, notify admin for manual review
+      if (validation.confidence >= 0.5 && validation.confidence < 0.8) {
+        await notifyAdminLowConfidenceUnit(sock, {
+          mobileNumber: mobile,
+          name: name,
+          unitAttempt: unit,
+          matchedUnit: validation.matchedUnit,
+          confidence: validation.confidence,
+          reason: validation.reason,
+        });
+        console.log(`[ONBOARDING] ⚠️ Low confidence (${validation.confidence}) - Admin notified for manual review`);
+      }
+
+      // Validation passed, keep original user input for Google Sheet
       console.log(`[ONBOARDING] ✅ Unit validated (matched: "${validation.matchedUnit}"), saving user input: "${unit}"`);
     }
 
@@ -602,33 +649,21 @@ async function completeOnboarding(
   // Save to Google Sheet
   await appendToSheet(session);
 
-  // Get invite link (expires after 2 days)
-  let inviteLink = "";
-  let expiresAt = "";
-  try {
-    const result = await getAndRevokeInviteLink(sock, config.whatsapp.groupId);
-    inviteLink = result.link;
-    expiresAt = result.expiresAt;
-    session.inviteLinkTimestamp = expiresAt;
-  } catch (err) {
-    console.error("[ONBOARDING] Failed to get invite link:", err);
-  }
+  // Use fixed invite link
+  const inviteLink = "https://chat.whatsapp.com/GCpmxxrgXZp76K7OKodf13";
 
   // Send confirmation + invite
   const confirmationMessage = await sock.sendMessage(senderJid, {
     text:
       `✅ *Registration received*\n\n` +
       `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
-      `Welcome to the Laguna Park Official WhatsApp Community.\n\n` +
+      `Welcome to the Laguna Park WhatsApp Community.\n\n` +
       `👇 *TAP BELOW TO JOIN THE COMMUNITY*\n` +
-      (inviteLink || "Please contact the admin for the invite link.") +
+      inviteLink +
       `\n\nMembership is subject to subsequent verification.`,
   });
 
   console.log(`[ONBOARDING] ✅ Completed for ${session.mobileNumber} — ${session.name} Unit ${session.unit}`);
-  if (expiresAt) {
-    console.log(`[ONBOARDING] Link expires at: ${expiresAt}`);
-  }
 
   // Wait a moment for user to see the message
   await new Promise(resolve => setTimeout(resolve, 3000));
