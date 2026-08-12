@@ -218,6 +218,14 @@ export async function moderateMessage(
     });
   }
 
+  // --- Sticker moderation (auto-delete all stickers) ---
+  const isSticker = !!m.stickerMessage;
+  if (isSticker) {
+    console.log(`[MOD] Sticker detected from ${senderId} - Auto-deleting`);
+    await deleteMessage(sock, groupJid, msg, "Stickers are not allowed in this group");
+    return;
+  }
+
   // --- Image / Video moderation (with caption check) ---
   const isImage = !!m.imageMessage;
   const isVideo = !!m.videoMessage;
