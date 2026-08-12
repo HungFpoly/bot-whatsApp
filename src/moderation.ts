@@ -222,7 +222,7 @@ export async function moderateMessage(
   }
 
   // --- Sticker moderation (auto-delete all stickers) ---
-  const isSticker = !!m.stickerMessage;
+  const isSticker = !!(m.stickerMessage || m.lottieStickerMessage);
   if (isSticker) {
     console.log(`[MOD] ⚠️ Sticker detected from ${senderId} - Auto-deleting`);
     await deleteMessage(sock, groupJid, msg, "Stickers are not allowed in this group");

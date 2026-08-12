@@ -154,11 +154,16 @@ Thank you for helping us maintain a respectful and properly organised community.
 
   async function handleMessage(sock: ReturnType<typeof makeWASocket>, msg: WAMessage) {
     if (!msg.message) return;
+    
+    // Debug: Log all messages
+    console.log(`[BOT] Message received: fromMe=${msg.key.fromMe}, remoteJid=${msg.key.remoteJid}, types=${Object.keys(msg.message || {})}`);
+    
     if (msg.key.fromMe) return;
 
     const remoteJid = msg.key.remoteJid || "";
     const text = getMessageText(msg);
     const isMedia = !!(msg.message?.imageMessage || msg.message?.videoMessage);
+    const isSticker = !!(msg.message?.stickerMessage || msg.message?.lottieStickerMessage);
 
     // ── Private chat → onboarding flow ──────────────────────────────────────
     if (!remoteJid.endsWith("@g.us")) {
@@ -173,7 +178,7 @@ Thank you for helping us maintain a respectful and properly organised community.
       return;
     }
 
-    if (!text && !isMedia) return;
+    if (!text && !isMedia && !isSticker) return;
 
     await moderateMessage(sock, remoteJid, msg);
   }
