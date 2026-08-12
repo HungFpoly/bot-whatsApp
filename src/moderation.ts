@@ -208,6 +208,9 @@ export async function moderateMessage(
 
   const senderId = msg.key.participant || msg.key.remoteJid || "unknown";
 
+  // Debug: Log message type to help diagnose
+  console.log(`[MOD] Message from ${senderId}, types:`, Object.keys(m));
+
   // Step 0.5: Quiet hours reminder (send once per sender per quiet window)
   checkQuietHoursReset();
   if (isQuietHours() && !quietHoursRemindedSenders.has(senderId)) {
@@ -221,7 +224,7 @@ export async function moderateMessage(
   // --- Sticker moderation (auto-delete all stickers) ---
   const isSticker = !!m.stickerMessage;
   if (isSticker) {
-    console.log(`[MOD] Sticker detected from ${senderId} - Auto-deleting`);
+    console.log(`[MOD] ⚠️ Sticker detected from ${senderId} - Auto-deleting`);
     await deleteMessage(sock, groupJid, msg, "Stickers are not allowed in this group");
     return;
   }
