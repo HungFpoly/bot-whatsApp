@@ -62,6 +62,25 @@ async function startBot() {
     if (connection === "open") {
       console.log("[BOT] ✅ Bot is connected and ready!");
       console.log("[BOT] Monitoring messages...");
+      
+      // Update community description on startup
+      if (config.whatsapp.groupId) {
+        try {
+          const communityDescription = 
+            `Welcome to the Laguna Park WhatsApp Community.\n\n` +
+            `This Community is intended for verified Laguna Park SPs and residents.\n\n` +
+            `Keep messages relevant, respectful and factual.\n\n` +
+            `No harassment, personal attacks, rumours, spam, advertising or unrelated political/religious content.\n\n` +
+            `Protect members' privacy. Do not share personal information, messages or screenshots without consent.\n\n` +
+            `Submit formal requests, complaints and emergencies through the Management Office, iCondo or the appropriate emergency service.\n\n` +
+            `Administrators may moderate content or remove members who breach these rules.`;
+          
+          await sock.groupUpdateDescription(config.whatsapp.groupId, communityDescription);
+          console.log("[BOT] ✅ Community description updated successfully");
+        } catch (error) {
+          console.error("[BOT] Failed to update community description:", error);
+        }
+      }
     }
 
     if (connection === "close") {
