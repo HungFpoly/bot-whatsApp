@@ -600,15 +600,15 @@ Respond ONLY in JSON:
       );
 
       // Reject if confidence too low (garbage input)
-      if (validation.confidence < 0.5) {
+      if (validation.confidence < 0.3) {
         await sock.sendMessage(senderJid, {
           text: `❌ Unit Number "${unit}" does not match any valid unit.\n\nReason: ${validation.reason}\n\nPlease enter a valid unit number and submit the form again.`,
         });
         return;
       }
 
-      // If confidence is between 0.5 and 0.8, notify admin for manual review
-      if (validation.confidence >= 0.5 && validation.confidence < 0.8) {
+      // If confidence is between 0.3 and 0.8, notify admin for manual review
+      if (validation.confidence >= 0.3 && validation.confidence < 0.8) {
         await notifyAdminLowConfidenceUnit(sock, {
           mobileNumber: mobile,
           name: name,
