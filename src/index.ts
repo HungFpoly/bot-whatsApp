@@ -101,7 +101,8 @@ async function startBot() {
     }
   });
 
-  // New member welcome message
+  // New member welcome message - TEMPORARILY DISABLED
+  /*
   sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
     if (action !== "add") return;
 
@@ -136,6 +137,7 @@ Thank you for helping us maintain a respectful and properly organised community.
       }
     }
   });
+  */
 
   // Persist credentials whenever they update
   sock.ev.on("creds.update", saveCreds);
