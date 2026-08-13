@@ -231,18 +231,18 @@ async function notifyAdminLowConfidenceUnit(
   try {
     const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
     const message =
-      `⚠️ *ONBOARDING ALERT - Low Confidence Unit*\n\n` +
-      `AI validation confidence: ${(resident.confidence * 100).toFixed(0)}%\n\n` +
+      `📋 *NEW REGISTRATION - Manual Verification Required*\n\n` +
       `*Mobile:* ${resident.mobileNumber}\n` +
       `*Name:* ${resident.name}\n` +
       `*Unit Entered:* ${resident.unitAttempt}\n` +
-      `*AI Matched:* ${resident.matchedUnit}\n` +
+      `*AI Matched:* ${resident.matchedUnit || "No match found"}\n` +
+      `*Confidence:* ${(resident.confidence * 100).toFixed(0)}%\n` +
       `*Reason:* ${resident.reason}\n\n` +
-      `Please verify this unit number manually.`;
+      `⚠️ Please verify this unit number manually.`;
 
     await sock.sendMessage(adminJid, { text: message });
     console.log(
-      `[ONBOARDING] Admin notified about low-confidence unit (${resident.confidence}) from ${resident.mobileNumber}`
+      `[ONBOARDING] Admin notified for registration: ${resident.mobileNumber} - Unit: ${resident.unitAttempt}`
     );
   } catch (error) {
     console.error("[ONBOARDING] Failed to notify admin:", error);
@@ -587,7 +587,7 @@ Respond ONLY in JSON:
       return;
     }
 
-    // AI Unit Validation - compare with Excel list
+    // Unit validation - notify admin for all registrations
     const validUnits = await loadValidUnits();
     
     if (validUnits.length === 0) {
@@ -599,30 +599,20 @@ Respond ONLY in JSON:
         `[ONBOARDING] Unit validation for "${unit}": confidence=${validation.confidence}, matched="${validation.matchedUnit}", reason="${validation.reason}"`
       );
 
-      // Reject if confidence too low (garbage input)
-      if (validation.confidence < 0.3) {
-        await sock.sendMessage(senderJid, {
-          text: `❌ Unit Number "${unit}" does not match any valid unit.\n\nReason: ${validation.reason}\n\nPlease enter a valid unit number and submit the form again.`,
-        });
-        return;
-      }
-
-      // If confidence is between 0.3 and 0.8, notify admin for manual review
-      if (validation.confidence >= 0.3 && validation.confidence < 0.8) {
-        await notifyAdminLowConfidenceUnit(sock, {
-          mobileNumber: mobile,
-          name: name,
-          unitAttempt: unit,
-          matchedUnit: validation.matchedUnit,
-          confidence: validation.confidence,
-          reason: validation.reason,
-        });
-        console.log(`[ONBOARDING] ⚠️ Low confidence (${validation.confidence}) - Admin notified for manual review`);
-      }
-
-      // Validation passed, keep original user input for Google Sheet
-      console.log(`[ONBOARDING] ✅ Unit validated (matched: "${validation.matchedUnit}"), saving user input: "${unit}"`);
+      // Always notify admin for manual review (no rejection)
+      await notifyAdminLowConfidenceUnit(sock, {
+        mobileNumber: mobile,
+        name: name,
+        unitAttempt: unit,
+        matchedUnit: validation.matchedUnit,
+        confidence: validation.confidence,
+        reason: validation.reason,
+      });
+      console.log(`[ONBOARDING] ✅ Admin notified for manual review of unit: ${unit}`);
     }
+
+    // Always accept - no rejection
+    console.log(`[ONBOARDING] ✅ Unit accepted (admin will verify): "${unit}"`);
 
     // Save user's unit (original input, not AI-matched unit)
     session.name = name;
