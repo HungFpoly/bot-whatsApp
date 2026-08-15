@@ -67,13 +67,24 @@ async function startBot() {
       if (config.whatsapp.groupId) {
         try {
           const communityDescription = 
-            `Welcome to the Laguna Park WhatsApp Community.\n\n` +
-            `This Community is intended for verified Laguna Park SPs and residents.\n\n` +
-            `Keep messages relevant, respectful and factual.\n\n` +
-            `No harassment, personal attacks, rumours, spam, advertising or unrelated political/religious content.\n\n` +
-            `Protect members' privacy. Do not share personal information, messages or screenshots without consent.\n\n` +
-            `Submit formal requests, complaints and emergencies through the Management Office, iCondo or the appropriate emergency service.\n\n` +
-            `Administrators may moderate content or remove members who breach these rules.`;
+            `Welcome to the Laguna Park WhatsApp Community Chatgroup. 🏡\n\n` +
+            `This group is for verified Laguna Park SPs, residents and tenants.\n\n` +
+            `Please keep discussions *relevant, respectful and factual*.\n\n` +
+            `• No harassment, personal attacks, rumours, spam, advertising, or unrelated political/religious content.\n\n` +
+            `• Respect members' privacy. Do not share or collect contact details, messages or screenshots without consent.\n\n` +
+            `• Your mobile number is visible to other group members.\n\n` +
+            `• Formal requests, complaints and emergencies should be submitted through the Management Office, iCondo or the appropriate emergency service.\n\n` +
+            `• This chat is moderated, including through automated moderation.\n\n` +
+            `*Please add your Member Tag after joining.*\n\n` +
+            `*How to add your Member Tag:*\n\n` +
+            `1. Open this chat and tap the *group name* at the top.\n\n` +
+            `2. Under *Members*, find your name and tap *Add member tag*.\n\n` +
+            `3. Enter your *unit and status*, then tap *Save*.\n\n` +
+            `*Example:* DXX-XX SP\n\n` +
+            `*Other status:* Resident / Tenant\n\n` +
+            `Your WhatsApp name will remain displayed separately.\n\n` +
+            `If you do not see the Member Tag option, please update WhatsApp to the latest version.\n\n` +
+            `Thank you for helping us maintain a respectful, organised and responsible Laguna Park community.`;
           
           await sock.groupUpdateDescription(config.whatsapp.groupId, communityDescription);
           console.log("[BOT] ✅ Community description updated successfully");
