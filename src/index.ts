@@ -70,10 +70,10 @@ async function startBot() {
             `Welcome to the Laguna Park WhatsApp Community Chatgroup. 🏡\n\n` +
             `This group is for verified Laguna Park SPs, residents and tenants.\n\n` +
             `Please keep discussions *relevant, respectful and factual*.\n\n` +
-            `• No harassment, personal attacks, rumours, spam, advertising, or unrelated political/religious content.\n\n` +
-            `• Respect members' privacy. Do not share or collect contact details, messages or screenshots without consent.\n\n` +
-            `• Your mobile number is visible to other group members.\n\n` +
-            `• Formal requests, complaints and emergencies should be submitted through the Management Office, iCondo or the appropriate emergency service.\n\n` +
+            `• No harassment, personal attacks, rumours, spam, advertising, or unrelated political/religious content.\n` +
+            `• Respect members' privacy. Do not share or collect contact details, messages or screenshots without consent.\n` +
+            `• Your mobile number is visible to other group members.\n` +
+            `• Formal requests, complaints and emergencies should be submitted through the Management Office, iCondo or the appropriate emergency service.\n` +
             `• This chat is moderated, including through automated moderation.\n\n` +
             `*Please add your Member Tag after joining.*\n\n` +
             `*How to add your Member Tag:*\n\n` +
