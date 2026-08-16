@@ -80,7 +80,7 @@ async function startBot() {
             `1. Open this chat and tap the *group name* at the top.\n\n` +
             `2. Under *Members*, find your name and tap *Add member tag*.\n\n` +
             `3. Enter your *unit and status*, then tap *Save*.\n\n` +
-            `*Example:* DXX-XX SP\n\n` +
+            `*Example:* DXX-XX Owner\n\n` +
             `*Other status:* Resident / Tenant\n\n` +
             `Your WhatsApp name will remain displayed separately.\n\n` +
             `If you do not see the Member Tag option, please update WhatsApp to the latest version.\n\n` +
@@ -135,7 +135,7 @@ After joining the chat group, please add your member tag.
 2. Under "Members", tap "Add member tag" below your name.
 3. Enter your unit and status, then tap "Save".
 
-*Example:* DXX-XX SP
+*Example:* DXX-XX Owner
 *Other status:* Resident or Tenant
 
 Your WhatsApp name will appear separately. If the option is unavailable, please update WhatsApp to the latest version.

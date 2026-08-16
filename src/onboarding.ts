@@ -196,7 +196,7 @@ const PRIVACY_NOTICE = `*LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
 
 This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
-To register you, we may collect your WhatsApp number, name, unit number, status (SP / resident / tenant), optional email and verification records.
+To register you, we may collect your WhatsApp number, name, unit number, status (Owner / Resident / Tenant), optional email and verification records.
 
 Your information will be used to verify and administer your membership and for official estate communications, announcements, events, polls, surveys and resident engagement. Your details may be checked against the strata roll, MCST and/or Management Office records.
 
@@ -473,7 +473,7 @@ export async function handleOnboardingMessage(
       session.step = "awaiting_form";
       session.consentTimestamp = new Date().toISOString();
       await sock.sendMessage(senderJid, {
-        text: `✅ *Consent recorded.*\n\nPlease reply with:\n\nName:\nUnit:\nResident Type: SP / Resident / Tenant\nEmail: Optional`,
+        text: `✅ *Consent recorded.*\n\nPlease reply with:\n\nName:\nUnit:\nResident Type: Owner / Resident / Tenant\nEmail: Optional`,
       });
       return;
     }
@@ -504,21 +504,21 @@ ${text}
 Extract the following information:
 - Name: Full name (usually 2-4 words)
 - Unit: Unit number (format like "06-06", "C19-08", "1908", etc.)
-- Resident Type: One of "SP", "Resident", or "Tenant" (look for keywords like sp, resident, tenant, owner)
+- Resident Type: One of "Owner", "Resident", or "Tenant" (look for keywords like owner, sp, resident, tenant)
 - Email: Optional email address
 
 Rules:
 - If user submits in format "Name: xxx", extract the value after colon
 - If user submits free-form (3 lines without labels), assume: Line 1 = Name, Line 2 = Unit, Line 3 = Resident Type
 - Names in Asian countries can be 2-4 words
-- Resident Type: normalize to "SP", "RESIDENT", or "TENANT" (case insensitive match)
+- Resident Type: normalize to "OWNER", "RESIDENT", or "TENANT" (case insensitive match, "SP" should map to "OWNER")
 - Email is optional
 
 Respond ONLY in JSON:
 {
   "name": "extracted name or empty",
   "unit": "extracted unit or empty",
-  "status": "SP/RESIDENT/TENANT or empty",
+  "status": "OWNER/RESIDENT/TENANT or empty",
   "email": "extracted email or empty"
 }`;
 
@@ -580,9 +580,9 @@ Respond ONLY in JSON:
       return;
     }
 
-    if (!status || !["SP", "RESIDENT", "TENANT"].includes(status)) {
+    if (!status || !["OWNER", "RESIDENT", "TENANT"].includes(status)) {
       await sock.sendMessage(senderJid, {
-        text: "❌ Resident Type must be one of: SP, Resident, or Tenant. Please fill the form again.",
+        text: "❌ Resident Type must be one of: Owner, Resident, or Tenant. Please fill the form again.",
       });
       return;
     }
