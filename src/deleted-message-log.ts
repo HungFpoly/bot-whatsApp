@@ -6,12 +6,10 @@ const SHEET_NAME = "Deleted Messages";
 const HEADERS = [
   "Deleted At",
   "Sender Name",
-  "Phone Number / JID",
+  "Phone Number",
   "Message Type",
   "Message Content",
   "Reason",
-  "Group JID",
-  "Message ID",
 ];
 
 let sheetReadyPromise: Promise<void> | null = null;
@@ -51,9 +49,11 @@ function getMessageContent(msg: WAMessage): string {
   return "[No text content]";
 }
 
-function getSenderIdentifier(msg: WAMessage): string {
+function getSenderPhoneNumber(msg: WAMessage): string {
   const key = msg.key as typeof msg.key & { participantAlt?: string };
-  return key.participantAlt || key.participant || key.remoteJid || "unknown";
+  const candidates = [key.participantAlt, key.participant, key.remoteJid];
+  const phoneJid = candidates.find((jid) => jid?.endsWith("@s.whatsapp.net"));
+  return phoneJid?.replace("@s.whatsapp.net", "") || "";
 }
 
 function formatSingaporeTimestamp(date: Date): string {
@@ -92,24 +92,36 @@ async function ensureSheetExists(
 
   const headerResponse = await sheets.spreadsheets.values.get({
     spreadsheetId: config.google.sheetId,
-    range: `'${SHEET_NAME}'!A1:H1`,
+    range: `'${SHEET_NAME}'!A1:F1`,
   });
 
-  if (!headerResponse.data.values?.length) {
+  const currentHeaders = headerResponse.data.values?.[0] || [];
+  if (JSON.stringify(currentHeaders) !== JSON.stringify(HEADERS)) {
     await sheets.spreadsheets.values.update({
       spreadsheetId: config.google.sheetId,
-      range: `'${SHEET_NAME}'!A1:H1`,
+      range: `'${SHEET_NAME}'!A1:F1`,
       valueInputOption: "RAW",
       requestBody: { values: [HEADERS] },
     });
   }
+
+  // Remove values from the two columns used by the previous audit format.
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: config.google.sheetId,
+    range: `'${SHEET_NAME}'!G:H`,
+  });
 }
 
 export async function logDeletedMessage(
   msg: WAMessage,
-  groupJid: string,
   reason: string
 ): Promise<void> {
+  const messageType = getMessageType(msg);
+  if (messageType !== "text") {
+    console.log(`[MOD] Skipping Google Sheet log for ${messageType} message`);
+    return;
+  }
+
   if (!config.google.sheetId) {
     console.warn("[MOD] GOOGLE_SHEET_ID is not configured; deletion was not logged");
     return;
@@ -132,19 +144,17 @@ export async function logDeletedMessage(
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: config.google.sheetId,
-      range: `'${SHEET_NAME}'!A:H`,
+      range: `'${SHEET_NAME}'!A:F`,
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [[
           formatSingaporeTimestamp(new Date()),
           msg.pushName || "",
-          getSenderIdentifier(msg),
-          getMessageType(msg),
+          getSenderPhoneNumber(msg),
+          messageType,
           getMessageContent(msg),
           reason,
-          groupJid,
-          msg.key.id || "",
         ]],
       },
     });

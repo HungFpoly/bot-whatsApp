@@ -367,7 +367,7 @@ async function deleteMessageByKey(
     });
 
     console.log(`[MOD] ✅ Message deleted. Reason: ${reason}`);
-    await logDeletedMessage(msg, groupJid, reason);
+    await logDeletedMessage(msg, reason);
 
     if (config.bot.violationAction === "delete_and_warn") {
       await sock.sendMessage(groupJid, {
