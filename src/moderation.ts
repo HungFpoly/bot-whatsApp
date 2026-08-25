@@ -1,7 +1,8 @@
-import type { WASocket, WAMessage, proto } from "@whiskeysockets/baileys";
+import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
 import { downloadMediaMessage } from "@whiskeysockets/baileys";
 import { config } from "./config";
 import { analyzeMessage, analyzeImage } from "./ai";
+import { logDeletedMessage } from "./deleted-message-log";
 
 // ---- Quiet Hours ----
 // Tracks which senders already received a reminder in the current quiet-hours
@@ -41,14 +42,14 @@ const SPAM_DUPLICATE_THRESHOLD = 2; // same/similar text repeated N+ times
 const SPAM_FLOOD_THRESHOLD = 5; // warn + delete from the 6th message onward
 
 interface SpamResult {
-  keysToDelete: proto.IMessageKey[];
+  messagesToDelete: WAMessage[];
   shouldWarn: boolean;
 }
 
 interface RecentMessage {
   text: string;
   timestamp: number;
-  key: proto.IMessageKey;
+  message: WAMessage;
   deleted: boolean;
 }
 
@@ -69,7 +70,7 @@ function normalizeForSpamCheck(text: string): string {
 function checkSpam(
   senderId: string,
   text: string,
-  key: proto.IMessageKey
+  message: WAMessage
 ): SpamResult {
   const now = Date.now();
   const normalized = normalizeForSpamCheck(text);
@@ -80,7 +81,7 @@ function checkSpam(
   const recent = history.filter((m) => now - m.timestamp < SPAM_WINDOW_MS);
 
   // Add current message
-  const current: RecentMessage = { text: normalized, timestamp: now, key, deleted: false };
+  const current: RecentMessage = { text: normalized, timestamp: now, message, deleted: false };
   recent.push(current);
   recentMessagesBySender.set(senderId, recent);
 
@@ -90,25 +91,25 @@ function checkSpam(
   const isFlood = recent.length > SPAM_FLOOD_THRESHOLD;
 
   if (!isFlood && !isDuplicateSpam) {
-    return { keysToDelete: [], shouldWarn: false };
+    return { messagesToDelete: [], shouldWarn: false };
   }
 
   // Flood: only delete messages beyond the first 5
   // Duplicate: keep first occurrence, delete repeats
   const toDelete = isFlood ? recent.slice(SPAM_FLOOD_THRESHOLD) : duplicates.slice(1);
-  const keys: proto.IMessageKey[] = [];
+  const messages: WAMessage[] = [];
   for (const m of toDelete) {
     if (!m.deleted) {
       m.deleted = true;
-      keys.push(m.key);
+      messages.push(m.message);
     }
   }
 
   // Send warning only once per spam window per sender
-  const shouldWarn = keys.length > 0 && !spamWarnedSenders.has(senderId);
+  const shouldWarn = messages.length > 0 && !spamWarnedSenders.has(senderId);
   if (shouldWarn) spamWarnedSenders.add(senderId);
 
-  return { keysToDelete: keys, shouldWarn };
+  return { messagesToDelete: messages, shouldWarn };
 }
 
 // Bad words / abbreviations list (expand as needed)
@@ -264,13 +265,13 @@ export async function moderateMessage(
   if (!text) return;
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
-  const { keysToDelete, shouldWarn } = checkSpam(senderId, text, msg.key);
-  if (keysToDelete.length > 0) {
+  const { messagesToDelete, shouldWarn } = checkSpam(senderId, text, msg);
+  if (messagesToDelete.length > 0) {
     console.log(
-      `[MOD] Spam detected from ${senderId}: "${text.substring(0, 50)}..." (deleting ${keysToDelete.length} message(s))`
+      `[MOD] Spam detected from ${senderId}: "${text.substring(0, 50)}..." (deleting ${messagesToDelete.length} message(s))`
     );
-    for (const key of keysToDelete) {
-      await deleteMessageByKey(sock, groupJid, key, "Spam / repeated messages");
+    for (const spamMessage of messagesToDelete) {
+      await deleteMessage(sock, groupJid, spamMessage, "Spam / repeated messages");
     }
     if (shouldWarn) {
       await sock.sendMessage(groupJid, {
@@ -341,16 +342,17 @@ async function deleteMessage(
   msg: WAMessage,
   reason: string
 ): Promise<void> {
-  await deleteMessageByKey(sock, groupJid, msg.key, reason);
+  await deleteMessageByKey(sock, groupJid, msg, reason);
 }
 
 async function deleteMessageByKey(
   sock: WASocket,
   groupJid: string,
-  key: proto.IMessageKey,
+  msg: WAMessage,
   reason: string
 ): Promise<void> {
   try {
+    const key = msg.key;
     // For LID groups, use the real phone number (participantAlt) for deletion
     // participantAlt is not in the official type but exists at runtime
     const deleteKey = {
@@ -365,6 +367,7 @@ async function deleteMessageByKey(
     });
 
     console.log(`[MOD] ✅ Message deleted. Reason: ${reason}`);
+    await logDeletedMessage(msg, groupJid, reason);
 
     if (config.bot.violationAction === "delete_and_warn") {
       await sock.sendMessage(groupJid, {
