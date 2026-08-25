@@ -13,6 +13,15 @@ import { handleOnboardingMessage, initContactMapping } from "./onboarding";
 
 const logger = pino({ level: "warn" });
 
+function normalizeGroupDescription(description?: string | null): string {
+  return (description || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+}
+
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(
     config.whatsapp.sessionPath
@@ -86,8 +95,19 @@ async function startBot() {
             `If you do not see the Member Tag option, please update WhatsApp to the latest version.\n\n` +
             `Thank you for helping us maintain a respectful, organised and responsible Laguna Park community.`;
           
-          await sock.groupUpdateDescription(config.whatsapp.groupId, communityDescription);
-          console.log("[BOT] ✅ Community description updated successfully");
+          const metadata = await sock.groupMetadata(config.whatsapp.groupId);
+          const currentDescription = normalizeGroupDescription(metadata.desc);
+          const desiredDescription = normalizeGroupDescription(communityDescription);
+
+          if (currentDescription !== desiredDescription) {
+            await sock.groupUpdateDescription(
+              config.whatsapp.groupId,
+              communityDescription
+            );
+            console.log("[BOT] ✅ Community description updated successfully");
+          } else {
+            console.log("[BOT] Community description is already up to date");
+          }
         } catch (error) {
           console.error("[BOT] Failed to update community description:", error);
         }
