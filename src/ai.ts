@@ -137,6 +137,9 @@ IMPORTANT:
 - If message talks about SCAM awareness talks/events organized by Police/IAEC/CC/official bodies, it is ALLOWED (community education, not actual scam)
 - Singapore Police Force, CPF, HDB, PA, grassroots organizations = LEGITIMATE sources
 - Event registration messages with QR codes from official community organizations = ALLOWED
+- Legitimate Google Search URLs (google.com/search) are ALLOWED. Long Google tracking parameters alone do not make a link suspicious or phishing
+- Text formatted as "[Google Search query: ...]" is the cleaned search query from a legitimate Google Search URL; evaluate the query meaning, not the removed tracking parameters
+- Google shared links (share.google) are ALLOWED. Text formatted as "[Google shared link]" represents a legitimate share.google URL and must not be flagged as suspicious or phishing
 
 Respond ONLY in JSON format:
 {

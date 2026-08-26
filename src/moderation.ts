@@ -61,6 +61,31 @@ function normalizeForSpamCheck(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function simplifyTrustedGoogleUrls(text: string): string {
+  return text.replace(/https?:\/\/[^\s]+/gi, (rawUrl) => {
+    try {
+      const url = new URL(rawUrl);
+      const hostname = url.hostname.toLowerCase();
+      if (hostname === "share.google") {
+        return "[Google shared link]";
+      }
+
+      const isGoogleSearch =
+        (hostname === "google.com" || hostname === "www.google.com") &&
+        url.pathname === "/search";
+
+      if (!isGoogleSearch) return rawUrl;
+
+      const query = url.searchParams.get("q")?.trim();
+      return query
+        ? `[Google Search query: ${query}]`
+        : "[Google Search link]";
+    } catch {
+      return rawUrl;
+    }
+  });
+}
+
 /**
  * Records the message and checks whether the sender is spamming.
  * - Flood: keep the first 5 messages, delete from the 6th onward.
@@ -238,15 +263,16 @@ export async function moderateMessage(
     // First, check caption text (if exists)
     const caption = getMessageText(msg);
     if (caption && caption.length >= config.bot.minMessageLength) {
+      const moderationCaption = simplifyTrustedGoogleUrls(caption);
       // Check bad words in caption
-      if (containsBadWords(caption)) {
+      if (containsBadWords(moderationCaption)) {
         console.log(`[MOD] Bad word in image/video caption: "${caption.substring(0, 50)}..."`);
         await deleteMessage(sock, groupJid, msg, "Contains prohibited words");
         return;
       }
       
       // AI analysis for caption text
-      const textResult = await analyzeMessage(caption);
+      const textResult = await analyzeMessage(moderationCaption);
       if (textResult.isToxic && textResult.confidence >= 0.7) {
         console.log(
           `[MOD] AI flagged caption (${textResult.confidence}): "${caption.substring(0, 50)}..." - Reason: ${textResult.reason}`
@@ -263,6 +289,7 @@ export async function moderateMessage(
 
   const text = getMessageText(msg);
   if (!text) return;
+  const moderationText = simplifyTrustedGoogleUrls(text);
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
   const { messagesToDelete, shouldWarn } = checkSpam(senderId, text, msg);
@@ -287,14 +314,14 @@ export async function moderateMessage(
   }
 
   // Step 1: Quick check with bad words list (free, instant)
-  if (containsBadWords(text)) {
+  if (containsBadWords(moderationText)) {
     console.log(`[MOD] Bad word detected: "${text.substring(0, 50)}..."`);
     await deleteMessage(sock, groupJid, msg, "Contains prohibited words");
     return;
   }
 
   // Step 2: AI analysis for context-based toxicity AND religious content
-  const result = await analyzeMessage(text);
+  const result = await analyzeMessage(moderationText);
 
   if (result.isToxic && result.confidence >= 0.7) {
     console.log(
