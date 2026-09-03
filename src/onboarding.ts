@@ -214,6 +214,39 @@ By replying *I AGREE*, you consent to MCST 3271 collecting, using and disclosing
 
 Reply *I AGREE* to continue.`;
 
+async function notifyAdminNewRegistration(
+  sock: WASocket,
+  resident: {
+    mobileNumber: string;
+    name: string;
+    unit: string;
+    status: string;
+    email: string;
+  }
+): Promise<void> {
+  if (!config.whatsapp.adminNumber) {
+    console.warn("[ONBOARDING] ADMIN_WHATSAPP_NUMBER is not configured; admin was not notified");
+    return;
+  }
+
+  try {
+    const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
+    const message =
+      `📋 *NEW REGISTRATION - Manual Verification Required*\n\n` +
+      `*Mobile:* ${resident.mobileNumber}\n` +
+      `*Name:* ${resident.name}\n` +
+      `*Unit:* ${resident.unit}\n` +
+      `*Resident Type:* ${resident.status}\n` +
+      `*Email:* ${resident.email || "Not provided"}\n\n` +
+      `Please verify this registration manually.`;
+
+    await sock.sendMessage(adminJid, { text: message });
+    console.log(`[ONBOARDING] Admin notified of new registration: ${resident.mobileNumber}`);
+  } catch (error) {
+    console.error("[ONBOARDING] Failed to notify admin of new registration:", error);
+  }
+}
+
 
 // ── Admin notification ───────────────────────────────────────────────────────
 
@@ -490,78 +523,29 @@ export async function handleOnboardingMessage(
 
   // ── Step 3: Parse form submission ─────────────────────────────────────────
   if (session.step === "awaiting_form") {
-    // Use AI to parse free-form text
+    // Parse the labelled registration form locally. Field order does not matter.
     let name = "", unit = "", status = "", email = "";
-    
-    try {
-      const parsePrompt = `You are a form parser for Laguna Park condominium registration.
 
-User submitted this text:
-"""
-${text}
-"""
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^\*|\*$/g, "").trim())
+      .filter(Boolean);
 
-Extract the following information:
-- Name: Full name (usually 2-4 words)
-- Unit: Unit number (format like "06-06", "C19-08", "1908", etc.)
-- Resident Type: One of "Owner", "Resident", or "Tenant" (look for keywords like owner, sp, resident, tenant)
-- Email: Optional email address
+    for (const line of lines) {
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex < 0) continue;
 
-Rules:
-- If user submits in format "Name: xxx", extract the value after colon
-- If user submits free-form (3 lines without labels), assume: Line 1 = Name, Line 2 = Unit, Line 3 = Resident Type
-- Names in Asian countries can be 2-4 words
-- Resident Type: normalize to "OWNER", "RESIDENT", or "TENANT" (case insensitive match, "SP" should map to "OWNER")
-- Email is optional
+      const label = line.slice(0, separatorIndex).trim().toLowerCase();
+      const value = line.slice(separatorIndex + 1).trim().replace(/^\*|\*$/g, "").trim();
 
-Respond ONLY in JSON:
-{
-  "name": "extracted name or empty",
-  "unit": "extracted unit or empty",
-  "status": "OWNER/RESIDENT/TENANT or empty",
-  "email": "extracted email or empty"
-}`;
-
-      const parseResponse = await openai.chat.completions.create({
-        model: config.openai.model,
-        messages: [{ role: "user", content: parsePrompt }],
-        temperature: 0.1,
-        max_tokens: 200,
-      });
-
-      const parseContent = parseResponse.choices[0]?.message?.content || "";
-      const parseCleaned = parseContent.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(parseCleaned) as {
-        name: string;
-        unit: string;
-        status: string;
-        email: string;
-      };
-
-      name = parsed.name || "";
-      unit = (parsed.unit || "").toUpperCase();
-      status = (parsed.status || "").toUpperCase();
-      email = parsed.email || "";
-
-      console.log(`[ONBOARDING] AI parsed: name="${name}", unit="${unit}", status="${status}", email="${email}"`);
-    } catch (parseError) {
-      console.error("[ONBOARDING] AI parsing failed, falling back to manual parse:", parseError);
-      
-      // Fallback: manual parsing
-      const lines = text.split('\n').map(line => line.trim().replace(/^\*|\*$/g, '').trim()).filter(l => l);
-      
-      for (const line of lines) {
-        const lowerLine = line.toLowerCase();
-        
-        if (lowerLine.startsWith("name:")) {
-          name = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
-        } else if (lowerLine.startsWith("unit number:") || lowerLine.startsWith("unit:")) {
-          unit = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().toUpperCase();
-        } else if (lowerLine.startsWith("resident type:") || lowerLine.startsWith("status:")) {
-          status = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim().replace(/\s+/g, '').toUpperCase();
-        } else if (lowerLine.startsWith("email:")) {
-          email = line.substring(line.indexOf(":") + 1).trim().replace(/^\*|\*$/g, '').trim();
-        }
+      if (label === "name") {
+        name = value;
+      } else if (label === "unit" || label === "unit number") {
+        unit = value.toUpperCase();
+      } else if (label === "resident type" || label === "status") {
+        status = value.replace(/\s+/g, "").toUpperCase();
+      } else if (label === "email") {
+        email = value;
       }
     }
 
@@ -587,32 +571,7 @@ Respond ONLY in JSON:
       return;
     }
 
-    // Unit validation - notify admin for all registrations
-    const validUnits = await loadValidUnits();
-    
-    if (validUnits.length === 0) {
-      console.log("[ONBOARDING] ⚠️ No valid units loaded, skipping validation");
-    } else {
-      const validation = await validateUnitWithAI(unit, validUnits);
-
-      console.log(
-        `[ONBOARDING] Unit validation for "${unit}": confidence=${validation.confidence}, matched="${validation.matchedUnit}", reason="${validation.reason}"`
-      );
-
-      // Always notify admin for manual review (no rejection)
-      await notifyAdminLowConfidenceUnit(sock, {
-        mobileNumber: mobile,
-        name: name,
-        unitAttempt: unit,
-        matchedUnit: validation.matchedUnit,
-        confidence: validation.confidence,
-        reason: validation.reason,
-      });
-      console.log(`[ONBOARDING] ✅ Admin notified for manual review of unit: ${unit}`);
-    }
-
-    // Always accept - no rejection
-    console.log(`[ONBOARDING] ✅ Unit accepted (admin will verify): "${unit}"`);
+    console.log(`[ONBOARDING] Registration parsed locally; unit will be verified manually: "${unit}"`);
 
     // Save user's unit (original input, not AI-matched unit)
     session.name = name;
@@ -622,6 +581,14 @@ Respond ONLY in JSON:
     session.step = "complete";
 
     console.log(`[ONBOARDING] Accepted unit "${unit}" (user input preserved)`);
+
+    await notifyAdminNewRegistration(sock, {
+      mobileNumber: mobile,
+      name,
+      unit,
+      status,
+      email,
+    });
 
     // Complete registration
     await completeOnboarding(sock, senderJid, session);
