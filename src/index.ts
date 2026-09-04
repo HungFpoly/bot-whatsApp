@@ -81,44 +81,30 @@ This group is for verified Laguna Park SPs, residents and tenants.
 
 Please keep discussions relevant, respectful and factual.
 
-*Community Rules*
+Community Rules
 
-- Robust discussion, disagreement, criticism of decisions or ideas, and factual rebuttals are welcome, even when expressed firmly. Please address the issue, not the person.
+- Robust discussion, disagreement, criticism of decisions or ideas, and factual rebuttals are allowed, even when expressed firmly. Address the issue, not the person.
 - No personal attacks, insults, harassment, bullying, threats, hate speech or discriminatory content.
-- Do not make disparaging personal remarks about other residents, Council members, Management or staff.
+- No disparaging personal remarks about residents, Council members, Management or staff.
 - No vulgar language, profanity or slurs.
-- No scams, phishing, suspicious requests, impersonation or requests for OTPs, passwords or banking information.
+- No scams, phishing, suspicious links, impersonation, or requests for OTPs or banking information.
 - No commercial advertising, solicitation or repeated promotional messages.
 - No religious content or promotional material.
 - No sexual, pornographic, graphic violent or otherwise inappropriate content.
 - Stickers are not allowed.
-- Repeated messages and message flooding may be treated as spam.
-- Respect members' privacy. Do not share or collect another member's contact details, private messages or screenshots without consent.
-- Your mobile number will be visible to other members of this group.
+- Repeated messages or message flooding may be treated as spam.
+- Respect members' privacy. Do not share or collect contact details, private messages or screenshots without consent.
+- Your mobile number is visible to other members.
 
-Property, neighbourhood, en bloc and estate-related discussions are allowed, together with legitimate news, government or community information relevant to Laguna Park residents.
+Property, neighbourhood, en bloc and estate-related discussions are allowed, together with legitimate news, government and community information relevant to Laguna Park residents.
 
-Formal requests, maintenance issues and complaints should continue to be submitted through the Management Office or iCondo. For emergencies, contact the appropriate emergency service.
+Formal requests, complaints and maintenance issues should be submitted through the Management Office or iCondo. Emergencies should be directed to the appropriate emergency service.
 
-This chat is moderated, including through automated moderation. Moderation is intended to maintain a constructive environment, not to prevent members from expressing different views or responding to statements with relevant facts or evidence.
+This chat is moderated, including through automated moderation. Moderation is intended to maintain a constructive environment, not to prevent members from expressing different views or responding with relevant facts or evidence.
 
-*Please add your Member Tag after joining.*
+Members are encouraged to add their unit/status as a Member Tag, e.g. DXX-XX Owner / Resident / Tenant.
 
-*How to add your Member Tag*
-
-1. Open this chat and tap the group name at the top.
-2. Under "Members", find your name and tap "Add member tag".
-3. Enter your unit and status, then tap "Save".
-
-Example: *DXX-XX Owner*
-
-Other status: *Resident / Tenant*
-
-Your WhatsApp name will remain displayed separately.
-
-If you do not see the Member Tag option, please update WhatsApp to the latest version.
-
-Thank you for helping us maintain a respectful, organised and responsible Laguna Park community.`;
+Thank you for helping maintain a respectful and responsible Laguna Park community.`;
           
           const metadata = await sock.groupMetadata(config.whatsapp.groupId);
           const currentDescription = normalizeGroupDescription(metadata.desc);
