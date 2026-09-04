@@ -58,7 +58,41 @@ const recentMessagesBySender = new Map<string, RecentMessage[]>();
 const spamWarnedSenders = new Set<string>();
 
 function normalizeForSpamCheck(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, " ");
+  return text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getBigrams(text: string): Set<string> {
+  const compact = text.replace(/\s+/g, " ");
+  const bigrams = new Set<string>();
+  for (let i = 0; i < compact.length - 1; i++) {
+    bigrams.add(compact.slice(i, i + 2));
+  }
+  return bigrams;
+}
+
+function areSubstantiallySimilar(first: string, second: string): boolean {
+  if (first === second) return true;
+
+  // Avoid treating different very short chat replies as equivalent.
+  if (first.length < 12 || second.length < 12) return false;
+
+  const firstBigrams = getBigrams(first);
+  const secondBigrams = getBigrams(second);
+  if (firstBigrams.size === 0 || secondBigrams.size === 0) return false;
+
+  let overlap = 0;
+  for (const bigram of firstBigrams) {
+    if (secondBigrams.has(bigram)) overlap++;
+  }
+
+  const diceSimilarity =
+    (2 * overlap) / (firstBigrams.size + secondBigrams.size);
+  return diceSimilarity >= 0.9;
 }
 
 function simplifyTrustedGoogleUrls(text: string): string {
@@ -93,6 +127,7 @@ function simplifyTrustedGoogleUrls(text: string): string {
  * Returns keysToDelete and whether a warning should be sent.
  */
 function checkSpam(
+  groupJid: string,
   senderId: string,
   text: string,
   message: WAMessage
@@ -100,7 +135,8 @@ function checkSpam(
   const now = Date.now();
   const normalized = normalizeForSpamCheck(text);
 
-  const history = recentMessagesBySender.get(senderId) || [];
+  const senderKey = `${groupJid}:${senderId}`;
+  const history = recentMessagesBySender.get(senderKey) || [];
 
   // Drop entries outside the time window
   const recent = history.filter((m) => now - m.timestamp < SPAM_WINDOW_MS);
@@ -108,9 +144,11 @@ function checkSpam(
   // Add current message
   const current: RecentMessage = { text: normalized, timestamp: now, message, deleted: false };
   recent.push(current);
-  recentMessagesBySender.set(senderId, recent);
+  recentMessagesBySender.set(senderKey, recent);
 
-  const duplicates = recent.filter((m) => m.text === normalized);
+  const duplicates = recent.filter((m) =>
+    areSubstantiallySimilar(m.text, normalized)
+  );
   const isDuplicateSpam = duplicates.length >= SPAM_DUPLICATE_THRESHOLD;
   // Flood: 6th message onward (keep first SPAM_FLOOD_THRESHOLD = 5)
   const isFlood = recent.length > SPAM_FLOOD_THRESHOLD;
@@ -135,78 +173,6 @@ function checkSpam(
   if (shouldWarn) spamWarnedSenders.add(senderId);
 
   return { messagesToDelete: messages, shouldWarn };
-}
-
-// Bad words / abbreviations list (expand as needed)
-// Matched with word boundaries to avoid false positives (e.g. "class" won't match "ass")
-const BAD_WORDS: string[] = [
-  // English profanity
-  "fuck",
-  "fck",
-  "f\\*ck",
-  "shit",
-  "sh\\*t",
-  "asshole",
-  "a-hole",
-  "ahole",
-  "bitch",
-  "bastard",
-  "dick",
-  "pussy",
-  "cunt",
-  "wtf",
-  "stfu",
-  "gtfo",
-  // Insults
-  "idiot",
-  "stupid",
-  "dumb",
-  "moron",
-  "retard",
-  "trash",
-  "rubbish",
-  "loser",
-  // Slurs / hate speech
-  "nigger",
-  "faggot",
-  // "gay" removed as standalone ban — only flagged when used as insult via AI
-  // Chinese profanity (common WhatsApp/chat abbreviations)
-  "他妈的",
-  "卧槽",
-  "妈的",
-  "tmd",
-  "nmsl",
-  "cnm",
-  // Hokkien / Singlish vulgar abbreviations (common in Singapore group chats)
-  "knn",
-  "kns",
-  "ccb",
-  "cb",
-  "lj",
-  "diao",
-  "lanjiao",
-  "chee bye",
-  "kanina",
-  "kaninabuchowchibai",
-  "dou ma",
-  "douma",
-  // Phrases specifically requested to be blocked
-  "without prejudice",
-  "handcuff",
-  "handcuffs",
-];
-
-function containsBadWords(text: string): boolean {
-  const lowerText = text.toLowerCase();
-  return BAD_WORDS.some((word) => {
-    // For CJK words, substring match is fine (no word boundaries in Chinese)
-    if (/[\u4e00-\u9fff]/.test(word)) {
-      return lowerText.includes(word);
-    }
-    // For latin words, use word boundary to avoid matching inside other words
-    const regex = new RegExp(`\\b${word}\\b`, "i");
-    return regex.test(lowerText);
-  });
 }
 
 /**
@@ -264,13 +230,6 @@ export async function moderateMessage(
     const caption = getMessageText(msg);
     if (caption && caption.length >= config.bot.minMessageLength) {
       const moderationCaption = simplifyTrustedGoogleUrls(caption);
-      // Check bad words in caption
-      if (containsBadWords(moderationCaption)) {
-        console.log(`[MOD] Bad word in image/video caption: "${caption.substring(0, 50)}..."`);
-        await deleteMessage(sock, groupJid, msg, "Contains prohibited words");
-        return;
-      }
-      
       // AI analysis for caption text
       const textResult = await analyzeMessage(moderationCaption);
       if (textResult.isToxic && textResult.confidence >= 0.7) {
@@ -292,7 +251,7 @@ export async function moderateMessage(
   const moderationText = simplifyTrustedGoogleUrls(text);
 
   // Step 0: Spam check (duplicate messages / flooding), free & instant.
-  const { messagesToDelete, shouldWarn } = checkSpam(senderId, text, msg);
+  const { messagesToDelete, shouldWarn } = checkSpam(groupJid, senderId, text, msg);
   if (messagesToDelete.length > 0) {
     console.log(
       `[MOD] Spam detected from ${senderId}: "${text.substring(0, 50)}..." (deleting ${messagesToDelete.length} message(s))`
@@ -313,14 +272,8 @@ export async function moderateMessage(
     return;
   }
 
-  // Step 1: Quick check with bad words list (free, instant)
-  if (containsBadWords(moderationText)) {
-    console.log(`[MOD] Bad word detected: "${text.substring(0, 50)}..."`);
-    await deleteMessage(sock, groupJid, msg, "Contains prohibited words");
-    return;
-  }
-
-  // Step 2: AI analysis for context-based toxicity AND religious content
+  // AI analysis handles profanity and insults in context, so reports, warnings,
+  // quotations, and permitted identity/festival references are not auto-deleted.
   const result = await analyzeMessage(moderationText);
 
   if (result.isToxic && result.confidence >= 0.7) {
@@ -348,7 +301,8 @@ async function moderateMedia(
     const base64 = buffer.toString("base64");
     const mimeType = type === "image" ? "image/jpeg" : "image/jpeg"; // use first frame for video
 
-    const result = await analyzeImage(base64, mimeType);
+    const caption = simplifyTrustedGoogleUrls(getMessageText(msg));
+    const result = await analyzeImage(base64, mimeType, caption);
 
     if (result.isToxic && result.confidence >= 0.7) {
       console.log(
@@ -388,19 +342,35 @@ async function deleteMessageByKey(
       id: key.id,
       participant: (key as any).participantAlt || key.participant,
     };
-    
+
+    const deletionNotice =
+      config.bot.violationAction === "delete_and_warn"
+        ? `⚠️ ${config.bot.warningMessage}\nReason: ${reason}`
+        : `⚠️ This message is being removed.\nReason: ${reason}`;
+
     await sock.sendMessage(groupJid, {
       delete: deleteKey,
     });
 
     console.log(`[MOD] ✅ Message deleted. Reason: ${reason}`);
-    await logDeletedMessage(msg, reason);
 
-    if (config.bot.violationAction === "delete_and_warn") {
-      await sock.sendMessage(groupJid, {
-        text: `⚠️ ${config.bot.warningMessage}`,
-      });
+    // Keep the reply associated with the deleted message without copying the
+    // prohibited content into WhatsApp's persistent quoted-message preview.
+    const sanitizedQuotedMessage: WAMessage = {
+      ...msg,
+      message: { conversation: "[Deleted message]" },
+    };
+    try {
+      await sock.sendMessage(
+        groupJid,
+        { text: deletionNotice },
+        { quoted: sanitizedQuotedMessage }
+      );
+    } catch (replyError) {
+      console.error("[MOD] Failed to reply with deletion reason:", replyError);
     }
+
+    await logDeletedMessage(msg, reason);
   } catch (error) {
     console.error("[MOD] ❌ Failed to delete message:", error);
   }
