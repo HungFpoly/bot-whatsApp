@@ -4,8 +4,8 @@ dotenv.config();
 export const config = {
   openai: {
     apiKey: process.env.AI_API_KEY || "",
-    baseUrl: process.env.AI_BASE_URL || "https://api.moonshot.ai/v1",
-    model: process.env.AI_MODEL || "moonshot-v1-8k",
+    baseUrl: process.env.AI_BASE_URL || "https://api.openai.com/v1",
+    model: process.env.AI_MODEL || "gpt-4o-mini",
   },
   whatsapp: {
     groupId: process.env.WHATSAPP_GROUP_ID || "",

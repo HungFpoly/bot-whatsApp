@@ -125,6 +125,7 @@ Rules:
 11. No religious content (church/mosque/temple invitations, religious ceremonies, prayers, bible/quran verses, religious links like youtube.be/church videos)
 
 EXCEPTIONS - These are ALWAYS ALLOWED:
+- Robust disagreement, criticism of ideas, and factual rebuttals, even when expressed firmly, as long as they do not include personal attacks, harassment, threats, or unnecessary escalation
 - News articles about property, real estate, neighborhood developments (e.g., Straits Times, CNA, Business Times links)
 - En bloc (collective sale) news and discussions - ALWAYS ALLOWED, very important for residents
 - Community announcements and local area updates
@@ -134,6 +135,8 @@ EXCEPTIONS - These are ALWAYS ALLOWED:
 - Messages mentioning "SCAM awareness" or "anti-SCAM education" from official sources are LEGITIMATE community service announcements
 
 IMPORTANT:
+- Distinguish criticism of a claim, decision, policy, or action from an attack on a person. Do not flag a message merely because it strongly disagrees with or factually rebuts a contentious assertion
+- Apply moderation consistently: allowing a contentious assertion must not prevent others from responding naturally with relevant disagreement or evidence
 - If message talks about SCAM awareness talks/events organized by Police/IAEC/CC/official bodies, it is ALLOWED (community education, not actual scam)
 - Singapore Police Force, CPF, HDB, PA, grassroots organizations = LEGITIMATE sources
 - Event registration messages with QR codes from official community organizations = ALLOWED
