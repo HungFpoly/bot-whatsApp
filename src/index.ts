@@ -75,25 +75,50 @@ async function startBot() {
       // Update community description on startup
       if (config.whatsapp.groupId) {
         try {
-          const communityDescription = 
-            `Welcome to the Laguna Park WhatsApp Community Chatgroup. 🏡\n\n` +
-            `This group is for verified Laguna Park SPs, residents and tenants.\n\n` +
-            `Please keep discussions *relevant, respectful and factual*.\n\n` +
-            `• No harassment, personal attacks, rumours, spam, advertising, or unrelated political/religious content.\n` +
-            `• Respect members' privacy. Do not share or collect contact details, messages or screenshots without consent.\n` +
-            `• Your mobile number is visible to other group members.\n` +
-            `• Formal requests, complaints and emergencies should be submitted through the Management Office, iCondo or the appropriate emergency service.\n` +
-            `• This chat is moderated, including through automated moderation.\n\n` +
-            `*Please add your Member Tag after joining.*\n\n` +
-            `*How to add your Member Tag:*\n\n` +
-            `1. Open this chat and tap the *group name* at the top.\n\n` +
-            `2. Under *Members*, find your name and tap *Add member tag*.\n\n` +
-            `3. Enter your *unit and status*, then tap *Save*.\n\n` +
-            `*Example:* DXX-XX Owner\n\n` +
-            `*Other status:* Resident / Tenant\n\n` +
-            `Your WhatsApp name will remain displayed separately.\n\n` +
-            `If you do not see the Member Tag option, please update WhatsApp to the latest version.\n\n` +
-            `Thank you for helping us maintain a respectful, organised and responsible Laguna Park community.`;
+          const communityDescription = `Welcome to the Laguna Park WhatsApp Community Chatgroup. 🏡
+
+This group is for verified Laguna Park SPs, residents and tenants.
+
+Please keep discussions relevant, respectful and factual.
+
+*Community Rules*
+
+- Robust discussion, disagreement, criticism of decisions or ideas, and factual rebuttals are welcome, even when expressed firmly. Please address the issue, not the person.
+- No personal attacks, insults, harassment, bullying, threats, hate speech or discriminatory content.
+- Do not make disparaging personal remarks about other residents, Council members, Management or staff.
+- No vulgar language, profanity or slurs.
+- No scams, phishing, suspicious requests, impersonation or requests for OTPs, passwords or banking information.
+- No commercial advertising, solicitation or repeated promotional messages.
+- No religious content or promotional material.
+- No sexual, pornographic, graphic violent or otherwise inappropriate content.
+- Stickers are not allowed.
+- Repeated messages and message flooding may be treated as spam.
+- Respect members' privacy. Do not share or collect another member's contact details, private messages or screenshots without consent.
+- Your mobile number will be visible to other members of this group.
+
+Property, neighbourhood, en bloc and estate-related discussions are allowed, together with legitimate news, government or community information relevant to Laguna Park residents.
+
+Formal requests, maintenance issues and complaints should continue to be submitted through the Management Office or iCondo. For emergencies, contact the appropriate emergency service.
+
+This chat is moderated, including through automated moderation. Moderation is intended to maintain a constructive environment, not to prevent members from expressing different views or responding to statements with relevant facts or evidence.
+
+*Please add your Member Tag after joining.*
+
+*How to add your Member Tag*
+
+1. Open this chat and tap the group name at the top.
+2. Under "Members", find your name and tap "Add member tag".
+3. Enter your unit and status, then tap "Save".
+
+Example: *DXX-XX Owner*
+
+Other status: *Resident / Tenant*
+
+Your WhatsApp name will remain displayed separately.
+
+If you do not see the Member Tag option, please update WhatsApp to the latest version.
+
+Thank you for helping us maintain a respectful, organised and responsible Laguna Park community.`;
           
           const metadata = await sock.groupMetadata(config.whatsapp.groupId);
           const currentDescription = normalizeGroupDescription(metadata.desc);
