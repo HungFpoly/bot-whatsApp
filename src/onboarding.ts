@@ -1,14 +1,7 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import { google } from "googleapis";
 import { config } from "./config";
-import * as XLSX from "xlsx";
-import * as path from "path";
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: config.openai.apiKey,
-  baseURL: config.openai.baseUrl,
-});
+import { parseRegistrationForm } from "./registration-form";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,130 +20,8 @@ interface OnboardingSession {
   status?: string;
   email?: string;
   reminderSent?: boolean;
-  unitValidationAttempts?: number;
   inviteLinkTimestamp?: string; // Timestamp when invite link was generated (expires after 2 days)
 }
-
-// ── Load valid units from Excel ───────────────────────────────────────────────
-
-let validUnitsCache: string[] | null = null;
-
-async function loadValidUnits(): Promise<string[]> {
-  if (validUnitsCache) return validUnitsCache;
-
-  try {
-    const filePath = path.join(__dirname, "../Laguna Park Unit Numbers.xlsx");
-    const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json<{ Unit?: string }>(worksheet);
-
-    validUnitsCache = data
-      .map((row) => row.Unit || "")
-      .filter((unit) => unit.trim().length > 0)
-      .map((unit) => unit.trim().toUpperCase());
-
-    console.log(`[ONBOARDING] Loaded ${validUnitsCache.length} valid units from Excel`);
-    return validUnitsCache;
-  } catch (error) {
-    console.error("[ONBOARDING] Failed to load valid units from Excel:", error);
-    return [];
-  }
-}
-
-// ── AI Unit Validation ────────────────────────────────────────────────────────
-
-interface UnitValidationResult {
-  isValid: boolean;
-  matchedUnit: string;
-  confidence: number; // 0.0 to 1.0
-  reason: string;
-}
-
-async function validateUnitWithAI(
-  userInput: string,
-  validUnits: string[]
-): Promise<UnitValidationResult> {
-  try {
-    const prompt = `You are a unit number validator for Laguna Park condominium.
-
-Valid units from Excel (${validUnits.length} units):
-${validUnits.slice(0, 150).join(", ")}${validUnits.length > 150 ? "..." : ""}
-
-User submitted: "${userInput}"
-
-Task: Find the MOST SIMILAR unit from the valid list using STRING COMPARISON.
-
-RULES - String Similarity Scoring:
-1. Exact match → confidence 1.0
-2. User input is substring of valid unit → confidence 0.9
-   Example: "19-08" is in "50A-19-08" → 0.9
-3. Valid unit is substring of user input → confidence 0.85
-   Example: "50A-19-08" in "50A-19-08-A" → 0.85
-4. Same digits, different format → confidence 0.8
-   Example: "1908" vs "19-08" → 0.8
-5. Partial digit match → confidence 0.5-0.7
-   Example: "19-07" vs "19-08" → 0.6
-6. No similarity → confidence 0.0
-   Example: "e8r68rẻwe8r" vs "50A-19-08" → 0.0
-
-IMPORTANT:
-- Extract digits from both strings and compare
-- "19-08" should match "50A-19-08" with confidence 0.9+ (the "19-08" part exists)
-- "C19-08" should match "50C-19-08" with confidence 0.9+ (building letter + floor-unit)
-- Reject random text like "e8r68rẻwe8r", "hello world" → confidence 0.0
-- Building prefix (50A, 50B, 51A, C, D, etc.) is optional in user input
-
-Respond ONLY in JSON:
-{
-  "isValid": true/false,
-  "matchedUnit": "best match from valid list or empty",
-  "confidence": 0.0 to 1.0,
-  "reason": "brief explanation of similarity"
-}
-
-Examples:
-Input: "19-08" → Match "50A-19-08" → confidence 0.9, reason "Floor-unit digits match"
-Input: "C19-08" → Match "50C-19-08" → confidence 0.9, reason "Building and floor-unit match"
-Input: "50A-19-08" → Match "50A-19-08" → confidence 1.0, reason "Exact match"
-Input: "1908" → Match "50A-19-08" → confidence 0.85, reason "Same digits, format variation"
-Input: "e8r68rẻwe8r" → No match → confidence 0.0, reason "No valid unit contains these characters"
-Input: "hello" → No match → confidence 0.0, reason "Text does not resemble any unit number"`;
-
-    const response = await openai.chat.completions.create({
-      model: config.openai.model,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 200,
-    });
-
-    const content = response.choices[0]?.message?.content || "";
-    const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-    const result = JSON.parse(cleaned) as UnitValidationResult;
-
-    return {
-      isValid: result.isValid || false,
-      matchedUnit: result.matchedUnit || "",
-      confidence: result.confidence || 0,
-      reason: result.reason || "Unknown",
-    };
-  } catch (error) {
-    console.error("[ONBOARDING] AI unit validation failed:", error);
-    return {
-      isValid: false,
-      matchedUnit: "",
-      confidence: 0,
-      reason: "Error during validation",
-    };
-  }
-}
-
-// ── No longer needed - unit validation removed ────────────────────────────────
 
 // ── Contact mapping cache (LID → Phone Number) ──────────────────────────────
 
@@ -196,11 +67,9 @@ const PRIVACY_NOTICE = `*LAGUNA PARK OFFICIAL WHATSAPP COMMUNITY*
 
 This Community is operated by MCST Plan No. 3271 – Laguna Park.
 
-To register you, we may collect your WhatsApp number, name, unit number, status (Owner / Resident / Tenant), optional email and verification records.
+To register you, we may collect your WhatsApp number, name, unit number, status (Owner / Resident / Tenant), and optional email.
 
-Your information will be used to verify and administer your membership and for official estate communications, announcements, events, polls, surveys and resident engagement. Your details may be checked against the strata roll, MCST and/or Management Office records.
-
-Verification may take place after you join. Access may be removed if eligibility cannot be confirmed.
+Your information will be used to administer your membership and for official estate communications, announcements, events, polls, surveys and resident engagement.
 
 The Community includes a General Chat. If you participate, your WhatsApp number and profile information may be visible to other members.
 
@@ -232,13 +101,12 @@ async function notifyAdminNewRegistration(
   try {
     const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
     const message =
-      `📋 *NEW REGISTRATION - Manual Verification Required*\n\n` +
+      `📋 *NEW REGISTRATION*\n\n` +
       `*Mobile:* ${resident.mobileNumber}\n` +
       `*Name:* ${resident.name}\n` +
       `*Unit:* ${resident.unit}\n` +
       `*Resident Type:* ${resident.status}\n` +
-      `*Email:* ${resident.email || "Not provided"}\n\n` +
-      `Please verify this registration manually.`;
+      `*Email:* ${resident.email || "Not provided"}`;
 
     await sock.sendMessage(adminJid, { text: message });
     console.log(`[ONBOARDING] Admin notified of new registration: ${resident.mobileNumber}`);
@@ -247,67 +115,6 @@ async function notifyAdminNewRegistration(
   }
 }
 
-
-// ── Admin notification ───────────────────────────────────────────────────────
-
-async function notifyAdminLowConfidenceUnit(
-  sock: WASocket,
-  resident: {
-    mobileNumber: string;
-    name: string;
-    unitAttempt: string;
-    matchedUnit: string;
-    confidence: number;
-    reason: string;
-  }
-): Promise<void> {
-  try {
-    const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
-    const message =
-      `📋 *NEW REGISTRATION - Manual Verification Required*\n\n` +
-      `*Mobile:* ${resident.mobileNumber}\n` +
-      `*Name:* ${resident.name}\n` +
-      `*Unit Entered:* ${resident.unitAttempt}\n` +
-      `*AI Matched:* ${resident.matchedUnit || "No match found"}\n` +
-      `*Confidence:* ${(resident.confidence * 100).toFixed(0)}%\n` +
-      `*Reason:* ${resident.reason}\n\n` +
-      `⚠️ Please verify this unit number manually.`;
-
-    await sock.sendMessage(adminJid, { text: message });
-    console.log(
-      `[ONBOARDING] Admin notified for registration: ${resident.mobileNumber} - Unit: ${resident.unitAttempt}`
-    );
-  } catch (error) {
-    console.error("[ONBOARDING] Failed to notify admin:", error);
-  }
-}
-
-async function notifyAdminInvalidUnit(
-  sock: WASocket,
-  resident: {
-    mobileNumber: string;
-    name: string;
-    unitAttempt: string;
-  }
-): Promise<void> {
-  try {
-    const adminJid = `${config.whatsapp.adminNumber}@s.whatsapp.net`;
-    const message =
-      `⚠️ *ONBOARDING ALERT - Low Confidence Unit*\n\n` +
-      `AI validation confidence < 80%\n\n` +
-      `*Mobile:* ${resident.mobileNumber}\n` +
-      `*Name:* ${resident.name}\n` +
-      `*Unit Entered:* ${resident.unitAttempt}\n\n` +
-      `Please verify this unit number manually.`;
-
-    await sock.sendMessage(adminJid, { text: message });
-    console.log(
-      `[ONBOARDING] Admin notified about low-confidence unit from ${resident.mobileNumber}`
-    );
-  } catch (error) {
-    console.error("[ONBOARDING] Failed to notify admin:", error);
-  }
-}
 
 async function appendToSheet(session: OnboardingSession): Promise<void> {
   try {
@@ -523,57 +330,8 @@ export async function handleOnboardingMessage(
 
   // ── Step 3: Parse form submission ─────────────────────────────────────────
   if (session.step === "awaiting_form") {
-    // Parse the labelled registration form locally. Field order does not matter.
-    let name = "", unit = "", status = "", email = "";
+    const { name, unit, status, email } = parseRegistrationForm(text);
 
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim().replace(/^\*|\*$/g, "").trim())
-      .filter(Boolean);
-
-    for (const line of lines) {
-      const separatorIndex = line.indexOf(":");
-      if (separatorIndex < 0) continue;
-
-      const label = line.slice(0, separatorIndex).trim().toLowerCase();
-      const value = line.slice(separatorIndex + 1).trim().replace(/^\*|\*$/g, "").trim();
-
-      if (label === "name") {
-        name = value;
-      } else if (label === "unit" || label === "unit number") {
-        unit = value.toUpperCase();
-      } else if (label === "resident type" || label === "status") {
-        status = value.replace(/\s+/g, "").toUpperCase();
-      } else if (label === "email") {
-        email = value;
-      }
-    }
-
-    // Validate required fields
-    if (!name || name.length < 2) {
-      await sock.sendMessage(senderJid, {
-        text: "❌ Please enter your full name, then submit the form again.",
-      });
-      return;
-    }
-
-    if (!unit || unit.length < 2) {
-      await sock.sendMessage(senderJid, {
-        text: "❌ Unit Number is required. Please fill the form again.",
-      });
-      return;
-    }
-
-    if (!status || !["OWNER", "RESIDENT", "TENANT"].includes(status)) {
-      await sock.sendMessage(senderJid, {
-        text: "❌ Resident Type must be one of: Owner, Resident, or Tenant. Please fill the form again.",
-      });
-      return;
-    }
-
-    console.log(`[ONBOARDING] Registration parsed locally; unit will be verified manually: "${unit}"`);
-
-    // Save user's unit (original input, not AI-matched unit)
     session.name = name;
     session.unit = unit;
     session.status = status;
@@ -616,8 +374,7 @@ async function completeOnboarding(
       `${session.name} | ${session.unit} | ${session.status}${session.email ? ` | ${session.email}` : ""}\n\n` +
       `Welcome to the Laguna Park WhatsApp Community.\n\n` +
       `👇 *TAP BELOW TO JOIN THE COMMUNITY*\n` +
-      inviteLink +
-      `\n\nMembership is subject to subsequent verification.`,
+      inviteLink,
   });
 
   console.log(`[ONBOARDING] ✅ Completed for ${session.mobileNumber} — ${session.name} Unit ${session.unit}`);
