@@ -5,3 +5,4 @@ session/
 *.log
 *.xlsx
 service-account.json
+data/deleted-images/

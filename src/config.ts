@@ -33,5 +33,10 @@ export const config = {
     sheetId: process.env.GOOGLE_SHEET_ID || "",
     serviceAccountKeyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || "./service-account.json",
   },
+  imageLog: {
+    publicUrl: process.env.IMAGE_LOG_PUBLIC_URL || "",
+    directory: process.env.IMAGE_LOG_DIRECTORY || "./data/deleted-images",
+    port: parseInt(process.env.IMAGE_LOG_PORT || "8080", 10),
+  },
   port: parseInt(process.env.PORT || "3000", 10),
 };

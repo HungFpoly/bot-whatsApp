@@ -8,6 +8,7 @@ import { Boom } from "@hapi/boom";
 import pino from "pino";
 const qrcode = require("qrcode-terminal");
 import { config } from "./config";
+import { startImageLogServer } from "./image-log-store";
 import { moderateMessage, getMessageText } from "./moderation";
 import { handleOnboardingMessage, initContactMapping } from "./onboarding";
 
@@ -229,7 +230,8 @@ Thank you for helping us maintain a respectful and properly organised community.
 }
 
 console.log("[BOT] Starting WhatsApp Moderation Bot...");
-startBot().catch((err) => {
+// Start once, outside the WhatsApp reconnect loop.
+startImageLogServer().then(() => startBot()).catch((err) => {
   console.error("[BOT] Fatal error starting bot:", err);
   process.exit(1);
 });

@@ -2,7 +2,7 @@ import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
 import { downloadMediaMessage } from "@whiskeysockets/baileys";
 import { config } from "./config";
 import { analyzeMessage, analyzeImage } from "./ai";
-import { logDeletedMessage } from "./deleted-message-log";
+import { logDeletedMessage, imageLoggingEnabled } from "./deleted-message-log";
 
 // ---- Quiet Hours ----
 // Tracks which senders already received a reminder in the current quiet-hours
@@ -308,7 +308,7 @@ async function moderateMedia(
       console.log(
         `[MOD] AI flagged ${type} (${result.confidence}): Reason: ${result.reason}`
       );
-      await deleteMessage(sock, groupJid, msg, result.reason);
+      await deleteMessage(sock, groupJid, msg, result.reason, type === "image" ? buffer : undefined);
     } else {
       console.log(`[MOD] ${type} passed moderation.`);
     }
@@ -321,18 +321,27 @@ async function deleteMessage(
   sock: WASocket,
   groupJid: string,
   msg: WAMessage,
-  reason: string
+  reason: string,
+  imageBuffer?: Buffer
 ): Promise<void> {
-  await deleteMessageByKey(sock, groupJid, msg, reason);
+  await deleteMessageByKey(sock, groupJid, msg, reason, imageBuffer);
 }
 
 async function deleteMessageByKey(
   sock: WASocket,
   groupJid: string,
   msg: WAMessage,
-  reason: string
+  reason: string,
+  imageBuffer?: Buffer
 ): Promise<void> {
   try {
+    if (msg.message?.imageMessage && imageLoggingEnabled() && !imageBuffer) {
+      try {
+        imageBuffer = await downloadMediaMessage(msg, "buffer", { options: { signal: AbortSignal.timeout(15_000) } }) as Buffer;
+      } catch {
+        console.error("[MOD] Failed to capture image before deletion; text log will still be saved");
+      }
+    }
     const key = msg.key;
     // For LID groups, use the real phone number (participantAlt) for deletion
     // participantAlt is not in the official type but exists at runtime
@@ -370,7 +379,7 @@ async function deleteMessageByKey(
       console.error("[MOD] Failed to reply with deletion reason:", replyError);
     }
 
-    await logDeletedMessage(msg, reason);
+    await logDeletedMessage(msg, reason, imageBuffer);
   } catch (error) {
     console.error("[MOD] ❌ Failed to delete message:", error);
   }
