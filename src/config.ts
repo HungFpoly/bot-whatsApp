@@ -20,15 +20,6 @@ export const config = {
       process.env.WARNING_MESSAGE ||
       "Your message was removed for violating group rules.",
   },
-  quietHours: {
-    enabled: process.env.QUIET_HOURS_ENABLED !== "false",
-    startHour: parseInt(process.env.QUIET_HOURS_START || "23", 10), // 11pm
-    endHour: parseInt(process.env.QUIET_HOURS_END || "7", 10),     // 7am
-    timezone: process.env.QUIET_HOURS_TIMEZONE || "Asia/Singapore",
-    reminderMessage:
-      process.env.QUIET_HOURS_MESSAGE ||
-      "🌝 Quiet hours are from 11 pm to 7 am. Please be mindful when posting during this time. Thank you for your understanding.",
-  },
   google: {
     sheetId: process.env.GOOGLE_SHEET_ID || "",
     serviceAccountKeyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE || "./service-account.json",

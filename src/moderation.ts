@@ -4,36 +4,6 @@ import { config } from "./config";
 import { analyzeMessage, analyzeImage } from "./ai";
 import { logDeletedMessage, imageLoggingEnabled } from "./deleted-message-log";
 
-// ---- Quiet Hours ----
-// Tracks which senders already received a reminder in the current quiet-hours
-// window so they only get one reminder per session (not every message).
-const quietHoursRemindedSenders = new Set<string>();
-
-function isQuietHours(): boolean {
-  if (!config.quietHours.enabled) return false;
-  const now = new Date(
-    new Date().toLocaleString("en-US", { timeZone: config.quietHours.timezone })
-  );
-  const hour = now.getHours();
-  const { startHour, endHour } = config.quietHours;
-  // e.g. 23 → 7: wraps midnight
-  if (startHour > endHour) {
-    return hour >= startHour || hour < endHour;
-  }
-  return hour >= startHour && hour < endHour;
-}
-
-// Reset reminded senders at the start of each quiet-hours window
-// (i.e. when quiet hours begin again the next day)
-let _lastQuietState = false;
-function checkQuietHoursReset() {
-  const current = isQuietHours();
-  if (current && !_lastQuietState) {
-    quietHoursRemindedSenders.clear();
-  }
-  _lastQuietState = current;
-}
-
 // ---- Spam detection ----
 // Tracks recent message history per sender to detect flooding /
 // repeated duplicate messages (e.g. "spam spam spam" x5 in a row).
@@ -202,16 +172,6 @@ export async function moderateMessage(
 
   // Debug: Log message type to help diagnose
   console.log(`[MOD] Message from ${senderId}, types:`, Object.keys(m));
-
-  // Step 0.5: Quiet hours reminder (send once per sender per quiet window)
-  checkQuietHoursReset();
-  if (isQuietHours() && !quietHoursRemindedSenders.has(senderId)) {
-    quietHoursRemindedSenders.add(senderId);
-    console.log(`[MOD] Quiet hours reminder sent to ${senderId}`);
-    await sock.sendMessage(groupJid, {
-      text: config.quietHours.reminderMessage,
-    });
-  }
 
   // --- Sticker moderation (auto-delete all stickers) ---
   const isSticker = !!(m.stickerMessage || m.lottieStickerMessage);

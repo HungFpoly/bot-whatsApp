@@ -110,7 +110,7 @@ test('capture precedes deletion; download failure still logs; failed deletion do
   for (const failure of ['', 'download', 'delete']) {
     const events = [], buffer = Buffer.from('image');
     const api = loadTs('src/moderation.ts', {
-      './config': { config: { quietHours: { enabled: false }, bot: { minMessageLength: 5 } } },
+      './config': { config: { bot: { minMessageLength: 5 } } },
       './ai': { analyzeMessage: async () => ({ isToxic: true, confidence: 1, reason: 'reason' }) },
       './deleted-message-log': { imageLoggingEnabled: () => true, logDeletedMessage: async (msg, reason, image) => { events.push('log'); assert.equal(image, failure === 'download' ? undefined : buffer); } },
       '@whiskeysockets/baileys': { downloadMediaMessage: async () => { events.push('download'); if (failure === 'download') throw Error('download'); return buffer; } },
