@@ -1,6 +1,6 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import { google } from "googleapis";
-import { config } from "./config";
+import { config } from "../config";
 import { parseRegistrationForm } from "./registration-form";
 
 // ── Types ────────────────────────────────────────────────────────────────────

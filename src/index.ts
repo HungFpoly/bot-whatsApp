@@ -8,9 +8,9 @@ import { Boom } from "@hapi/boom";
 import pino from "pino";
 const qrcode = require("qrcode-terminal");
 import { config } from "./config";
-import { startImageLogServer } from "./image-log-store";
-import { moderateMessage, getMessageText } from "./moderation";
-import { handleOnboardingMessage, initContactMapping } from "./onboarding";
+import { startImageLogServer } from "./infrastructure/image-log-store";
+import { moderateMessage, getMessageText } from "./moderation/moderation.service";
+import { handleOnboardingMessage, initContactMapping } from "./onboarding/onboarding.service";
 
 const logger = pino({ level: "warn" });
 

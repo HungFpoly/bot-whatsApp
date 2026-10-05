@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import type { WAMessage } from "@whiskeysockets/baileys";
-import { config } from "./config";
+import { config } from "../config";
 import { saveLogImage } from "./image-log-store";
 
 const SHEET_NAME = "Deleted Messages";

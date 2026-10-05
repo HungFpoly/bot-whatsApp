@@ -3,7 +3,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { createServer, type Server } from "node:http";
 import sharp from "sharp";
-import { config } from "./config";
+import { config } from "../config";
 
 function publicBase(): string {
   const url = new URL(config.imageLog.publicUrl);

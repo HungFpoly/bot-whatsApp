@@ -29,8 +29,8 @@ function harness({ configured = true, storeFails = false, resizeFails = false } 
       },
     },
   } };
-  return { appended, dimensions, ...loadTs('src/deleted-message-log.ts', {
-    './config': { config },
+  return { appended, dimensions, ...loadTs('src/infrastructure/deleted-message-log.ts', {
+    '../config': { config },
     './image-log-store': { saveLogImage: async image => { if (storeFails) throw Error('disk full'); return `${config.imageLog.publicUrl}/images/${image.toString()}.jpg`; } },
     googleapis: { google: { auth: { GoogleAuth: class {} }, sheets: () => sheets } },
   }) };
@@ -76,7 +76,7 @@ test('real storage/HTTP serves only log images and survives restart', async () =
   let server;
   const config = { imageLog: { publicUrl: 'http://192.0.2.1:8080', directory, port: 8080 } };
   const http = require('node:http');
-  const store = loadTs('src/image-log-store.ts', { './config': { config }, 'node:http': {
+    const store = loadTs('src/infrastructure/image-log-store.ts', { '../config': { config }, 'node:http': {
     createServer: handler => { const s = http.createServer(handler); const listen = s.listen.bind(s); s.listen = (port, host, cb) => listen(0, '127.0.0.1', cb); return s; },
   } });
   try {
@@ -109,10 +109,17 @@ test('real storage/HTTP serves only log images and survives restart', async () =
 test('capture precedes deletion; download failure still logs; failed deletion does not log', async () => {
   for (const failure of ['', 'download', 'delete']) {
     const events = [], buffer = Buffer.from('image');
-    const api = loadTs('src/moderation.ts', {
-      './config': { config: { bot: { minMessageLength: 5 } } },
-      './ai': { analyzeMessage: async () => ({ isToxic: true, confidence: 1, reason: 'reason' }) },
-      './deleted-message-log': { imageLoggingEnabled: () => true, logDeletedMessage: async (msg, reason, image) => { events.push('log'); assert.equal(image, failure === 'download' ? undefined : buffer); } },
+    const api = loadTs('src/moderation/moderation.service.ts', {
+      '../config': { config: { bot: { minMessageLength: 5 } } },
+      './ai-moderator': { analyzeMessage: async () => ({ isToxic: true, confidence: 1, reason: 'reason' }) },
+      './content-whitelist': { getProtectedContentCategory: () => null, moderationThresholdFor: () => 0.9 },
+      './message-utils': {
+        getMessageText: msg => msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || msg.message?.videoMessage?.caption || '',
+        simplifyTrustedGoogleUrls: text => text,
+      },
+      './spam-detector': { SpamDetector: class { check() { return { messagesToDelete: [], shouldWarn: false }; } } },
+      './moderation-pipeline': { runModerationPipeline: async (rules, context) => { for (const rule of rules) if (await rule.execute(context)) return; } },
+      '../infrastructure/deleted-message-log': { imageLoggingEnabled: () => true, logDeletedMessage: async (msg, reason, image) => { events.push('log'); assert.equal(image, failure === 'download' ? undefined : buffer); } },
       '@whiskeysockets/baileys': { downloadMediaMessage: async () => { events.push('download'); if (failure === 'download') throw Error('download'); return buffer; } },
     });
     await api.moderateMessage({ sendMessage: async (jid, content) => { events.push(content.delete ? 'delete' : 'notice'); if (failure === 'delete') throw Error('delete'); } }, 'group@g.us', message({ imageMessage: { caption: 'bad caption' } }));

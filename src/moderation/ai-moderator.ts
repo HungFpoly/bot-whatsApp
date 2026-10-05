@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { config } from "./config";
+import { config } from "../config";
 
 const openai = new OpenAI({
   apiKey: config.openai.apiKey,
@@ -10,6 +10,7 @@ interface ModerationResult {
   isToxic: boolean;
   reason: string;
   confidence: number;
+  protectedCategory: "official_laguna_park" | "estate_report" | "none";
 }
 
 const IMAGE_MODERATION_PROMPT = `You are a content moderation bot for a condominium residents' group chat.
@@ -32,10 +33,16 @@ ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE RULES:
 - Government/Police/Official announcements and education materials (e.g., SCAM awareness talks, safety campaigns, CPF/HDB notices)
 - Event posters from community centers, grassroots organizations (CC, RC, PA, IAEC, police)
 - Official community-event posters and their registration QR codes
+- Genuine maintenance and estate-reporting photos, including defects, damage, leaks, broken facilities, inspections, repairs and common-area conditions
+- Genuine materials from Laguna Park's official vendors or partners, especially health programmes and digital-skills courses for residents
+- Official Laguna Park materials carrying reliable identifiers such as MCST 3271, The Management Corporation Strata Title Plan No. 3271, mcst3271cm@gmail.com, or 5000C Marine Parade Road
+- The "Digital for Life: Learn Digital @ Laguna Park Condo" programme and genuine materials bearing its partner logos, including IMDA, Digital Skills for Life, Smart Nation Singapore and SG Digital Office
 - Brief, respectful religious or cultural festival greetings, including customary symbols and decorations, provided they do not contain preaching, prayers, religious verses, religious fundraising, or invitations to worship or religious ceremonies
 
 IMPORTANT:
 - Assess the purpose and context of the image. Reporting or warning about prohibited conduct is different from promoting or engaging in it
+- Do not classify a genuine maintenance/estate report as graphic or inappropriate merely because it shows a defect, damage, dirt or repair work
+- Do not classify genuine official-vendor health or digital-course material as commercial advertising merely because it is a flyer, contains dates, registration details or a QR code
 - An official-looking logo, familiar website, or QR code does not by itself prove that content is legitimate
 - Exceptions never permit personal attacks, harassment, threats, scams, pornography, or graphic violence
 - Apply festival-greeting exceptions equally across religions and cultures
@@ -44,7 +51,8 @@ Respond ONLY in JSON format:
 {
   "isToxic": true/false,
   "reason": "brief explanation",
-  "confidence": 0.0 to 1.0
+  "confidence": 0.0 to 1.0,
+  "protectedCategory": "official_laguna_park", "estate_report", or "none"
 }
 
 Be strict but fair. Normal photos (food, facilities, documents, selfies, news screenshots, en bloc information) are OK when consistent with the rules.
@@ -91,6 +99,11 @@ export async function analyzeImage(
       isToxic: result.isToxic || false,
       reason: result.reason || "Unknown",
       confidence: result.confidence || 0,
+      protectedCategory:
+        result.protectedCategory === "official_laguna_park" ||
+        result.protectedCategory === "estate_report"
+          ? result.protectedCategory
+          : "none",
     };
   } catch (error) {
     console.error("[AI] Error analyzing image:", error);
@@ -98,6 +111,7 @@ export async function analyzeImage(
       isToxic: false,
       reason: "Error during image analysis",
       confidence: 0,
+      protectedCategory: "none",
     };
   }
 }
@@ -140,11 +154,17 @@ ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE DISCUSSION RULES:
 - Government/Police/Official announcements and education campaigns (SCAM awareness talks, safety campaigns, CPF/HDB notices)
 - Event invitations from community centers, grassroots organizations (CC, RC, PA, IAEC, police)
 - Official community-event posters and their registration QR codes
+- Maintenance requests and estate reports about defects, leaks, damage, repairs, inspections, cleanliness, facilities and common areas. Treat these as protected resident reports, including firm complaints about how an issue was handled
+- Genuine announcements and materials from Laguna Park's official vendors or partners, especially health programmes and digital-skills courses for residents
+- Official Laguna Park material identified by MCST 3271, The Management Corporation Strata Title Plan No. 3271, mcst3271cm@gmail.com, or 5000C Marine Parade Road
+- The "Digital for Life: Learn Digital @ Laguna Park Condo" programme and its genuine partner material from IMDA, Digital Skills for Life, Smart Nation Singapore or SG Digital Office
 - Legitimate Google Search and Google shared links
 - Brief, respectful greetings for religious or cultural festivals, including short, neutral explanations of the occasion. For example: "Happy Onam to all LP residents who celebrate." These must not include preaching, prayers, religious verses, religious fundraising, or invitations to worship or religious ceremonies. Apply this exception equally across religions and cultures
 
 IMPORTANT:
 - Assess the purpose and context of the material. Reporting or warning about prohibited conduct is different from promoting or engaging in it
+- Give maintenance and estate-reporting messages the benefit of the doubt. Do not flag them merely for negative sentiment, criticism, allegations about a defect, or requests for action
+- Do not treat genuine official-vendor health or digital-course announcements as commercial advertising
 - An official-looking logo, familiar website, or QR code does not by itself establish that content is legitimate
 - Exceptions do not permit personal attacks, harassment, threats, scams, pornography, or graphic violence
 - Legitimate Google Search URLs (google.com/search) are ALLOWED. Long Google tracking parameters alone do not make a link suspicious or phishing
@@ -155,7 +175,8 @@ Respond ONLY in JSON format:
 {
   "isToxic": true/false,
   "reason": "brief explanation",
-  "confidence": 0.0 to 1.0
+  "confidence": 0.0 to 1.0,
+  "protectedCategory": "official_laguna_park", "estate_report", or "none"
 }
 
 Be strict but fair. Normal complaints about facilities or services are OK.
@@ -180,6 +201,11 @@ Only flag messages that clearly violate one of the rules above.`,
       isToxic: result.isToxic || false,
       reason: result.reason || "Unknown",
       confidence: result.confidence || 0,
+      protectedCategory:
+        result.protectedCategory === "official_laguna_park" ||
+        result.protectedCategory === "estate_report"
+          ? result.protectedCategory
+          : "none",
     };
   } catch (error) {
     console.error("[AI] Error analyzing message:", error);
@@ -187,6 +213,7 @@ Only flag messages that clearly violate one of the rules above.`,
       isToxic: false,
       reason: "Error during analysis",
       confidence: 0,
+      protectedCategory: "none",
     };
   }
 }
