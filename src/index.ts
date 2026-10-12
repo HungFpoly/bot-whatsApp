@@ -90,7 +90,7 @@ Community Rules
 - No vulgar language, profanity or slurs.
 - No scams, phishing, suspicious links, impersonation, or requests for OTPs or banking information.
 - No commercial advertising, solicitation or repeated promotional messages.
-- No religious content or promotional material.
+- Brief, respectful religious or cultural festival greetings are allowed. Religious promotion, preaching, prayers, religious fundraising and invitations to worship or religious ceremonies are not allowed.
 - No sexual, pornographic, graphic violent or otherwise inappropriate content.
 - Stickers are not allowed.
 - Repeated messages or message flooding may be treated as spam.

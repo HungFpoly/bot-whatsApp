@@ -112,7 +112,7 @@ test('capture precedes deletion; download failure still logs; failed deletion do
     const api = loadTs('src/moderation/moderation.service.ts', {
       '../config': { config: { bot: { minMessageLength: 5 } } },
       './ai-moderator': { analyzeMessage: async () => ({ isToxic: true, confidence: 1, reason: 'reason' }) },
-      './content-whitelist': { getProtectedContentCategory: () => null, moderationThresholdFor: () => 0.9 },
+      './content-whitelist': { getProtectedContentCategory: () => null, isAllowedFestivalGreetingDecision: () => false, moderationThresholdFor: () => 0.9 },
       './message-utils': {
         getMessageText: msg => msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.imageMessage?.caption || msg.message?.videoMessage?.caption || '',
         simplifyTrustedGoogleUrls: text => text,

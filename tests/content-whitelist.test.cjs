@@ -35,3 +35,25 @@ test('does not whitelist vague advertising or unrelated keyword stuffing', () =>
   assert.equal(api.getProtectedContentCategory('Maintenance package promotion'), null);
   assert.equal(api.moderationThresholdFor('You are an idiot'), 0.9);
 });
+
+test('allows an AI decision that only identifies a festival greeting', () => {
+  assert.equal(
+    api.isAllowedFestivalGreetingDecision(
+      'The image promotes a religious festival greeting, which contains a religious message.'
+    ),
+    true
+  );
+  assert.equal(api.isAllowedFestivalGreetingDecision('A brief festive greeting for Deepavali'), true);
+});
+
+test('does not exempt devotional or promotional religious material', () => {
+  assert.equal(
+    api.isAllowedFestivalGreetingDecision('Festival greeting with an invitation to a worship ceremony'),
+    false
+  );
+  assert.equal(
+    api.isAllowedFestivalGreetingDecision('Festival greeting containing a prayer and fundraising request'),
+    false
+  );
+  assert.equal(api.isAllowedFestivalGreetingDecision('Religious sermon'), false);
+});

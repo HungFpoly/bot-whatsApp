@@ -3,7 +3,11 @@ import { downloadMediaMessage } from "@whiskeysockets/baileys";
 import { config } from "../config";
 import { analyzeMessage, analyzeImage } from "./ai-moderator";
 import { logDeletedMessage, imageLoggingEnabled } from "../infrastructure/deleted-message-log";
-import { getProtectedContentCategory, moderationThresholdFor } from "./content-whitelist";
+import {
+  getProtectedContentCategory,
+  isAllowedFestivalGreetingDecision,
+  moderationThresholdFor,
+} from "./content-whitelist";
 import { getMessageText, simplifyTrustedGoogleUrls } from "./message-utils";
 import { SpamDetector } from "./spam-detector";
 import { runModerationPipeline, type ModerationRule } from "./moderation-pipeline";
@@ -83,7 +87,11 @@ export class ModerationService {
     const caption = getMessageText(ctx.msg);
     if (caption && caption.length >= this.settings.minMessageLength) {
       const result = await this.dependencies.analyzeText(simplifyTrustedGoogleUrls(caption));
-      if (result.isToxic && result.confidence >= moderationThresholdFor(caption)) {
+      if (
+        result.isToxic &&
+        !isAllowedFestivalGreetingDecision(result.reason) &&
+        result.confidence >= moderationThresholdFor(caption)
+      ) {
         console.log(`[MOD] AI flagged caption (${result.confidence}): "${caption.substring(0, 50)}..." - Reason: ${result.reason}`);
         await this.dependencies.removeMessage(ctx.sock, ctx.groupJid, ctx.msg, result.reason);
         return true;
@@ -105,7 +113,11 @@ export class ModerationService {
       if (category) {
         console.log(`[MOD] Protected ${category} media context detected; deletion threshold is ${threshold}`);
       }
-      if (result.isToxic && result.confidence >= threshold) {
+      if (
+        result.isToxic &&
+        !isAllowedFestivalGreetingDecision(result.reason) &&
+        result.confidence >= threshold
+      ) {
         console.log(`[MOD] AI flagged ${type} (${result.confidence}): Reason: ${result.reason}`);
         await this.dependencies.removeMessage(ctx.sock, ctx.groupJid, ctx.msg, result.reason, isImage ? buffer : undefined);
       } else {
@@ -142,7 +154,11 @@ export class ModerationService {
     if (protectedCategory) {
       console.log(`[MOD] Protected ${protectedCategory} context detected; deletion threshold is ${threshold}`);
     }
-    if (result.isToxic && result.confidence >= threshold) {
+    if (
+      result.isToxic &&
+      !isAllowedFestivalGreetingDecision(result.reason) &&
+      result.confidence >= threshold
+    ) {
       console.log(`[MOD] AI flagged message (${result.confidence}): "${text.substring(0, 50)}..." - Reason: ${result.reason}`);
       await this.dependencies.removeMessage(ctx.sock, ctx.groupJid, ctx.msg, result.reason);
     }

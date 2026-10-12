@@ -101,3 +101,38 @@ export function moderationThresholdFor(text: string): number {
   void text;
   return 0.9;
 }
+
+const FESTIVAL_GREETING_MARKERS = [
+  "festival greeting",
+  "festive greeting",
+  "holiday greeting",
+];
+
+const DEVOTIONAL_OR_PROMOTIONAL_MARKERS = [
+  "preach",
+  "prayer",
+  "religious verse",
+  "scripture",
+  "sermon",
+  "fundrais",
+  "donat",
+  "invitation",
+  "invite",
+  "worship",
+  "ceremony",
+  "proselyt",
+];
+
+/**
+ * Catches the narrow AI false-positive where its own explanation says the
+ * material is merely a festival greeting. This is deliberately based on the
+ * decision reason, not user-controlled message text, and does not exempt
+ * devotional, fundraising or worship-related material.
+ */
+export function isAllowedFestivalGreetingDecision(reason: string): boolean {
+  const normalized = normalize(reason);
+  return (
+    includesAny(normalized, FESTIVAL_GREETING_MARKERS) &&
+    !includesAny(normalized, DEVOTIONAL_OR_PROMOTIONAL_MARKERS)
+  );
+}

@@ -17,12 +17,14 @@ const IMAGE_MODERATION_PROMPT = `You are a content moderation bot for a condomin
 Analyze the image together with its caption and context, when supplied, and determine if it violates group rules. Apply the text rules to words appearing within the image.
 
 Rules:
+MANDATORY EXCEPTION: A brief, respectful religious or cultural festival greeting is allowed. A greeting such as "Happy Deepavali", "Merry Christmas", "Selamat Hari Raya", "Happy Vesak Day" or "Happy Onam", including customary festive symbols and decorations, is NOT religious promotion and must return isToxic=false. This exception ends if the material also preaches, contains a prayer or religious verse, solicits religious donations, or invites people to worship or a religious ceremony.
+
 1. No sexual, pornographic, or nudity content
 2. No graphic violence or gore
 3. No hate symbols, racist or discriminatory imagery
 4. No scam or phishing images
 5. No commercial advertising or promotional flyers (property agents, insurance, loans, renovation services)
-6. No images promoting religion, worship, religious ceremonies or religious fundraising, or containing prayers, religious verses or sermons
+6. No images promoting religion or worship, advertising religious ceremonies or fundraising, or containing prayers, religious verses or sermons. Festival greetings covered by the mandatory exception are allowed
 
 ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE RULES:
 - News screenshots about property, real estate, neighborhood developments
@@ -127,6 +129,8 @@ export async function analyzeMessage(
           role: "system",
           content: `You are a content moderation bot for a condominium residents' group chat.
 Analyze the message and determine if it violates group rules.
+
+MANDATORY EXCEPTION: A brief, respectful religious or cultural festival greeting is allowed and is not religious promotion. Examples include "Happy Deepavali", "Merry Christmas", "Selamat Hari Raya", "Happy Vesak Day" and "Happy Onam". Return isToxic=false unless it also contains preaching, a prayer or religious verse, religious fundraising, or an invitation to worship or a religious ceremony.
 
 Rules:
 1. No vulgar language, profanity or slurs
