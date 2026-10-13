@@ -36,12 +36,15 @@ ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE RULES:
 - Event posters from community centers, grassroots organizations (CC, RC, PA, IAEC, police)
 - Official community-event posters and their registration QR codes
 - Genuine maintenance and estate-reporting photos, including defects, damage, leaks, broken facilities, inspections, repairs and common-area conditions
+- House rules, renovation regulations, contractor requirements, administrative charges, refundable deposits and fee schedules issued for residents. These are informational documents, not renovation-service advertisements
 - Genuine materials from Laguna Park's official vendors or partners, especially health programmes and digital-skills courses for residents
 - Official Laguna Park materials carrying reliable identifiers such as MCST 3271, The Management Corporation Strata Title Plan No. 3271, mcst3271cm@gmail.com, or 5000C Marine Parade Road
 - The "Digital for Life: Learn Digital @ Laguna Park Condo" programme and genuine materials bearing its partner logos, including IMDA, Digital Skills for Life, Smart Nation Singapore and SG Digital Office
 - Brief, respectful religious or cultural festival greetings, including customary symbols and decorations, provided they do not contain preaching, prayers, religious verses, religious fundraising, or invitations to worship or religious ceremonies
 
 IMPORTANT:
+- Evaluate the entire image, all readable text and its overall purpose before deciding. Never infer a violation from one keyword, phrase, price, charge or isolated visual element
+- Distinguish a document that regulates or explains renovation work from an advertisement offering renovation services. Words such as "renovation", "contractor", "charges", dollar amounts or deposits do not by themselves make content commercial advertising
 - Assess the purpose and context of the image. Reporting or warning about prohibited conduct is different from promoting or engaging in it
 - Do not classify a genuine maintenance/estate report as graphic or inappropriate merely because it shows a defect, damage, dirt or repair work
 - Do not classify genuine official-vendor health or digital-course material as commercial advertising merely because it is a flyer, contains dates, registration details or a QR code
@@ -76,7 +79,7 @@ export async function analyzeImage(
               type: "image_url",
               image_url: {
                 url: `data:${mimeType};base64,${imageBase64}`,
-                detail: "low", // use "low" to save tokens, sufficient for moderation
+                detail: "high", // documents require enough detail to assess all text and context
               },
             },
             {
@@ -159,6 +162,7 @@ ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE DISCUSSION RULES:
 - Event invitations from community centers, grassroots organizations (CC, RC, PA, IAEC, police)
 - Official community-event posters and their registration QR codes
 - Maintenance requests and estate reports about defects, leaks, damage, repairs, inspections, cleanliness, facilities and common areas. Treat these as protected resident reports, including firm complaints about how an issue was handled
+- House rules, renovation regulations, contractor requirements, administrative charges, refundable deposits and fee schedules issued for residents. These are informational documents, not commercial advertising
 - Genuine announcements and materials from Laguna Park's official vendors or partners, especially health programmes and digital-skills courses for residents
 - Official Laguna Park material identified by MCST 3271, The Management Corporation Strata Title Plan No. 3271, mcst3271cm@gmail.com, or 5000C Marine Parade Road
 - The "Digital for Life: Learn Digital @ Laguna Park Condo" programme and its genuine partner material from IMDA, Digital Skills for Life, Smart Nation Singapore or SG Digital Office
@@ -166,6 +170,8 @@ ALLOWED WHEN RELEVANT TO RESIDENTS AND CONSISTENT WITH THE DISCUSSION RULES:
 - Brief, respectful greetings for religious or cultural festivals, including short, neutral explanations of the occasion. For example: "Happy Onam to all LP residents who celebrate." These must not include preaching, prayers, religious verses, religious fundraising, or invitations to worship or religious ceremonies. Apply this exception equally across religions and cultures
 
 IMPORTANT:
+- Evaluate the entire message and its overall purpose before deciding. Never infer a violation from one keyword, phrase, price, charge or isolated sentence
+- Distinguish information that regulates or discusses a service from advertising that offers or solicits that service. Words such as "renovation", "contractor", "charges", dollar amounts or deposits do not by themselves make content commercial advertising
 - Assess the purpose and context of the material. Reporting or warning about prohibited conduct is different from promoting or engaging in it
 - Give maintenance and estate-reporting messages the benefit of the doubt. Do not flag them merely for negative sentiment, criticism, allegations about a defect, or requests for action
 - Do not treat genuine official-vendor health or digital-course announcements as commercial advertising

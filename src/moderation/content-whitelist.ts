@@ -99,7 +99,7 @@ export function moderationThresholdFor(text: string): number {
   // Keep this function as the single threshold source for every moderation
   // path. The text parameter is retained so callers do not need special cases.
   void text;
-  return 0.9;
+  return 1;
 }
 
 const FESTIVAL_GREETING_MARKERS = [

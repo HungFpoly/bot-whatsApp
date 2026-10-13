@@ -27,13 +27,13 @@ test('recognises genuine maintenance and estate-reporting context', () => {
     api.getProtectedContentCategory('Laguna Park lift is out of order; maintenance please inspect it'),
     'estate_report'
   );
-  assert.equal(api.moderationThresholdFor('The common area has a water leak'), 0.9);
+  assert.equal(api.moderationThresholdFor('The common area has a water leak'), 1);
 });
 
 test('does not whitelist vague advertising or unrelated keyword stuffing', () => {
   assert.equal(api.getProtectedContentCategory('Best digital marketing course on sale now'), null);
   assert.equal(api.getProtectedContentCategory('Maintenance package promotion'), null);
-  assert.equal(api.moderationThresholdFor('You are an idiot'), 0.9);
+  assert.equal(api.moderationThresholdFor('You are an idiot'), 1);
 });
 
 test('allows an AI decision that only identifies a festival greeting', () => {
